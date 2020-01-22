@@ -17,7 +17,7 @@ type label = string
 type irType =
   | Int
   | Float
-  | Array of irType * int
+  | ArrayType of irType * int
 
 type instr =
   | Label of label
@@ -44,14 +44,14 @@ type instr =
   | Call of string * operand list
   | Callr of string * string * operand list
 
-  | ArrayStore of string * operand * int
-  | ArrayLoad of string * operand * int
+  | ArrayStore of operand * string * int
+  | ArrayLoad of string * string * int
   | ArrayAssign of string * int * operand
 
 type func = {
   name: string;
   returnType: irType option;
-  params: irType list;
+  params: (string * irType) list;
   data: dataSegment;
   body: instr list
 }
