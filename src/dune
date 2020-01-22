@@ -1,0 +1,6 @@
+(ocamllex lexer)
+(menhir (modules parser))
+
+(executable
+  (name optimize)
+  (libraries menhirLib))
