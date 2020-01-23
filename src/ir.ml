@@ -15,9 +15,9 @@ type operand =
 type label = string
 
 type irType =
-  | Int
-  | Float
-  | ArrayType of irType * int
+  | TyInt
+  | TyFloat
+  | TyArray of irType * int
 
 type instr =
   | Label of label

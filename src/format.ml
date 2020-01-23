@@ -1,3 +1,5 @@
+open Ir
+
 let string_of_dataName = function
   | Scalar s -> s
   | Array (s, i) -> Printf.sprintf "%s[%d]" s i
@@ -8,7 +10,13 @@ let string_of_dataSegment = function
       List.map string_of_dataName list |> String.concat ", " in
     let ints = stringifyList intList
     and floats = stringifyList floatList in
-    Printf.sprintf "int-list: %s\nfloat-list: %s\n" ints floats
+    let intsText = match ints with
+      | "" -> "int-list:"
+      | list -> "int-list: " ^ list
+    and floatsText = match floats with
+      | "" -> "float-list:"
+      | list -> "float-list: " ^ list in
+    intsText ^ "\n" ^ floatsText
 
 let string_of_operand = function
   | Int i -> string_of_int i
@@ -18,9 +26,9 @@ let string_of_operand = function
 let string_of_label label = label
 
 let rec string_of_irType = function
-  | Int -> "int"
-  | Float -> "float"
-  | ArrayType (ty, size) ->
+  | TyInt -> "int"
+  | TyFloat -> "float"
+  | TyArray (ty, size) ->
     Printf.sprintf "%s[%d]" (string_of_irType ty) size
 
 let string_of_instr = function
@@ -61,38 +69,42 @@ let string_of_instr = function
   | Return op ->
     Printf.sprintf "return, %s" (string_of_operand op)
 
+  | Call (fn, []) ->
+    Printf.sprintf "call, %s" fn
   | Call (fn, args) ->
-    Printf.sprintf "call %s, %s" fn (List.map string_of_operand args |> String.concat ", ")
+    Printf.sprintf "call, %s, %s" fn (List.map string_of_operand args |> String.concat ", ")
+  | Callr (ret, fn, []) ->
+    Printf.sprintf "callr, %s, %s" ret fn
   | Callr (ret, fn, args) ->
-    Printf.sprintf "callr %s, %s, %s" (string_of_operand ret) fn (List.map string_of_operand args |> String.concat ", ")
+    Printf.sprintf "callr, %s, %s, %s" ret fn (List.map string_of_operand args |> String.concat ", ")
 
-  | ArrayStore (arr, var, idx) ->
+  | ArrayStore (var, arr, idx) ->
     Printf.sprintf "array_store, %s, %s, %d" (string_of_operand var) arr idx
-  | ArrayLoad (arr, var, idx) ->
+  | ArrayLoad (var, arr, idx) ->
     Printf.sprintf "array_load, %s, %s, %d" var arr idx
   | ArrayAssign (arr, size, value) ->
-    Printf.sprintf "assign, %s, %d, %d" arr size value
+    Printf.sprintf "assign, %s, %d, %s" arr size (string_of_operand value)
 
 let string_of_func = function
   {name; returnType; params; data; body} ->
     let header =
       let string_of_returnType = function
-        | None -> void
+        | None -> "void"
         | Some ty -> string_of_irType ty in
       let string_of_params params =
-        List.map (fun (id, ty) -> string_of_irType ty ^ " " ^ id) |> String.concat ", " in
-      Printf.sprintf "%s %s(%s):" (string_of_return_type returnType) name (string_of_params params)
+        List.map (fun (id, ty) -> string_of_irType ty ^ " " ^ id) params |> String.concat ", " in
+      Printf.sprintf "%s %s(%s):" (string_of_returnType returnType) name (string_of_params params)
     and dataSegment = string_of_dataSegment data
     and codeSegment =
       let indentAndFormat = function
-        | Label lbl -> string_of_instr lbl
-        | instr -> "\t" ^ string_of_instr instr in
-      List.map indentAndFormat |> String.concat "\n" in
+        | Label lbl -> string_of_instr (Label lbl)
+        | instr -> "    " ^ string_of_instr instr in
+      List.map indentAndFormat body |> String.concat "\n" in
     "#start_function\n" ^
     header ^ "\n" ^
     dataSegment ^ "\n" ^
     codeSegment ^ "\n" ^
-    "#end_function\n"
+    "#end_function"
 
 let string_of_program program =
-  List.map string_of_func program |> String.concat "\n"
+  List.map string_of_func program |> String.concat "\n\n"
