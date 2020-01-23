@@ -22,5 +22,12 @@ let read_file eval filename =
 
 let () =
   let eval prog =
-    print_endline (Format.string_of_program prog) in
+    print_endline (Format.string_of_program prog);
+
+    let print_function_cfg Ir.{name; body; _} =
+      Printf.printf "CFG for function %s:\n" name;
+      let cfg = Cfg.build body in
+      Cfg.dump_graph cfg in
+    List.iter print_function_cfg prog in
+
   read_file eval "examples/example.ir"
