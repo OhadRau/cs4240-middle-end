@@ -79,9 +79,9 @@ let string_of_instr = function
     Printf.sprintf "callr, %s, %s, %s" ret fn (List.map string_of_operand args |> String.concat ", ")
 
   | ArrayStore (var, arr, idx) ->
-    Printf.sprintf "array_store, %s, %s, %d" (string_of_operand var) arr idx
+    Printf.sprintf "array_store, %s, %s, %s" (string_of_operand var) arr (string_of_operand idx)
   | ArrayLoad (var, arr, idx) ->
-    Printf.sprintf "array_load, %s, %s, %d" var arr idx
+    Printf.sprintf "array_load, %s, %s, %s" var arr (string_of_operand idx)
   | ArrayAssign (arr, size, value) ->
     Printf.sprintf "assign, %s, %d, %s" arr size (string_of_operand value)
 

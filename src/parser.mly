@@ -167,9 +167,9 @@ instr:
   | CALLR; COMMA; id = IDENT; COMMA; fn = IDENT; COMMA; a = args
     { Callr (id, fn, a) }
 
-  | ARRAY_STORE; COMMA; op = operand; COMMA; arr = IDENT; COMMA; i = INT
+  | ARRAY_STORE; COMMA; op = operand; COMMA; arr = IDENT; COMMA; i = operand
     { ArrayStore (op, arr, i) }
-  | ARRAY_LOAD; COMMA; id = IDENT; COMMA; arr = IDENT; COMMA; i = INT
+  | ARRAY_LOAD; COMMA; id = IDENT; COMMA; arr = IDENT; COMMA; i = operand
     { ArrayLoad (id, arr, i) }
   | ASSIGN; COMMA; arr = IDENT; COMMA; size = INT; COMMA; value = operand
     { ArrayAssign (arr, size, value) }

@@ -44,8 +44,8 @@ type instr =
   | Call of string * operand list
   | Callr of string * string * operand list
 
-  | ArrayStore of operand * string * int
-  | ArrayLoad of string * string * int
+  | ArrayStore of operand * string * operand
+  | ArrayLoad of string * string * operand
   | ArrayAssign of string * int * operand
 
 type func = {
