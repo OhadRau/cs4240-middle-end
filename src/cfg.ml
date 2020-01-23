@@ -23,13 +23,14 @@ module Vertex = struct
 end
 
 module Edge = struct
-  type t = [`Fallthrough | `Branch]
+  type t = [`Fallthrough | `Branch | `Jump]
   let compare = compare
   let default = `Fallthrough
 
   let to_string = function
     | `Fallthrough -> "fallthrough"
     | `Branch -> "branch"
+    | `Jump -> "jump"
 end
 
 module G =
@@ -98,7 +99,7 @@ let build instrs =
        becomes the target of the jump *)
     | Ir.Goto lbl ->
       let target = Hashtbl.find vertices_by_label lbl in
-      let edge = G.E.create vertex `Fallthrough target in
+      let edge = G.E.create vertex `Jump target in
       G.add_edge_e g edge
     (* For branches, there are always two edges: the next instruction
        (fallthrough) and the target of the branch (whenever the condition
