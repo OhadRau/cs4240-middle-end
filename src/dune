@@ -3,4 +3,4 @@
 
 (executable
   (name optimize)
-  (libraries menhirLib))
+  (libraries menhirLib ocamlgraph))
