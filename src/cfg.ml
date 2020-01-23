@@ -17,12 +17,19 @@ module Vertex = struct
   let compare = compare
   let equal = (=)
   let hash = Hashtbl.hash
+
+  let to_string code =
+    List.map Format.string_of_instr code |> String.concat "\n"
 end
 
 module Edge = struct
   type t = [`Fallthrough | `Branch]
   let compare = compare
   let default = `Fallthrough
+
+  let to_string = function
+    | `Fallthrough -> "fallthrough"
+    | `Branch -> "branch"
 end
 
 module G =
@@ -119,20 +126,41 @@ let build instrs =
 
 let dump_graph g =
   let display_vertex v =
-    let _, instrs = G.V.label v in
-    let hash = G.V.hash v in
+    let num, instrs = G.V.label v in
     let formatted =
-      List.map Format.string_of_instr instrs |> String.concat "\n" in
-    Printf.printf "Vertex [%d]:\n" hash;
+      Vertex.to_string instrs in
+    Printf.printf "Vertex [%d]:\n" num;
     print_endline formatted in
   G.iter_vertex display_vertex g;
 
   let display_edge e =
-    let src_hash = G.E.src e |> G.V.hash
-    and dst_hash = G.E.dst e |> G.V.hash
-    and label =
-      match G.E.label e with
-      | `Fallthrough -> "fallthrough"
-      | `Branch -> "branch" in
-    Printf.printf "Edge [%d -%s-> %d]\n" src_hash label dst_hash in
+    let src_num, _ = G.E.src e |> G.V.label
+    and dst_num, _ = G.E.dst e |> G.V.label
+    and label = G.E.label e |> Edge.to_string in
+    Printf.printf "Edge [%d -%s-> %d]\n" src_num label dst_num in
   G.iter_edges_e display_edge g
+
+(* Use OCamlgraph's Graphviz module to generate a DOT file, which can
+   then be used to render the graph as a PDF or image. *)
+module Render = Graphviz.Dot(struct
+  include G
+  
+  let edge_attributes (_a, e, _b) =
+    [`Label (Edge.to_string e);
+     `Color 4711;
+     `Dir `Forward]
+
+  let default_edge_attributes _ = []
+
+  let get_subgraph _ = None
+  
+  let vertex_attributes (_num, code) =
+    [`Shape `Box;
+     `Label (Vertex.to_string code)]
+  
+  let vertex_name (num, _code) = string_of_int num
+  
+  let default_vertex_attributes _ = []
+  
+  let graph_attributes _ = []
+end)
