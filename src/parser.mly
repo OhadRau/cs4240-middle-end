@@ -180,6 +180,10 @@ operand:
     { Int i }
   | MINUS; i = INT
     { Int (-i) }
+  | i = INT; DOT
+    { Float (float_of_int i) }
+  | DOT; p = INT
+    { Float (float_of_string ("." ^ string_of_int p)) }
   | i = INT; DOT; p = INT
     { Float (float_of_string (string_of_int i ^ "." ^ string_of_int p)) }
   | MINUS; i = INT; DOT; p = INT
