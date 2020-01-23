@@ -21,7 +21,7 @@ let ident = ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_' '\'']*
 
 rule read = parse
   | white     { read lexbuf }
-  | newline   { next_line lexbuf; read lexbuf }
+  | newline   { next_line lexbuf; EOL }
 
   | int as i    { INT (int_of_string i) }
 

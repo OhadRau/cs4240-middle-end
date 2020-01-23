@@ -46,6 +46,7 @@
 %token ARRAY_STORE
 %token ARRAY_LOAD
 
+%token EOL
 %token EOF
 
 %{
@@ -61,7 +62,7 @@ program:
 ;
 
 func:
-  | START_FUNCTION; hd = header; data = dataSegment; body = codeSegment; END_FUNCTION
+  | START_FUNCTION; EOL+; hd = header; data = dataSegment; body = codeSegment; END_FUNCTION; EOL+
     {
       let (name, returnType, params) = hd in
       { name; returnType; params; data; body }
@@ -69,18 +70,18 @@ func:
 ;
 
 header:
-  | TY_VOID; id = IDENT; LEFT_PAREN; p = params; RIGHT_PAREN; COLON
+  | TY_VOID; id = ident_or_keyword; LEFT_PAREN; p = params; RIGHT_PAREN; COLON; EOL+
     { (id, None, p) }
-  | ty = irType; id = IDENT; LEFT_PAREN; p = params; RIGHT_PAREN; COLON
+  | ty = irType; id = ident_or_keyword; LEFT_PAREN; p = params; RIGHT_PAREN; COLON; EOL+
     { (id, Some ty, p) }
 ;
 
 params:
   | 
     { [] }
-  | ty = irType; id = IDENT
+  | ty = irType; id = ident_or_keyword
     { [(id, ty)] }
-  | ty = irType; id = IDENT; COMMA; rest = params
+  | ty = irType; id = ident_or_keyword; COMMA; rest = params
     { (id, ty)::rest }
 ;
 
@@ -92,7 +93,7 @@ irType:
 ;
 
 dataSegment:
-  | INT_LIST; COLON; ints = dataNames; FLOAT_LIST; COLON; floats = dataNames
+  | INT_LIST; COLON; ints = dataNames; EOL+; FLOAT_LIST; COLON; floats = dataNames; EOL+
     { { intList = ints; floatList = floats } }
 ;
 
@@ -106,72 +107,72 @@ dataNames:
 ;
 
 dataName:
-  | id = IDENT
+  | id = ident_or_keyword
     { Scalar id }
-  | id = IDENT; LEFT_BRACKET; size = INT; RIGHT_BRACKET
+  | id = ident_or_keyword; LEFT_BRACKET; size = INT; RIGHT_BRACKET
     { Array (id, size) }
 
 codeSegment:
   |
     { [] }
-  | i = instr; rest = codeSegment
+  | i = instr; EOL; rest = codeSegment
     { i::rest }
 ;
 
 instr:
-  | id = IDENT; COLON
+  | id = ident_or_keyword; COLON
     { Label id }
 
-  | ASSIGN; COMMA; id = IDENT; COMMA; op = operand
+  | ASSIGN; COMMA; id = ident_or_keyword; COMMA; op = operand
     { Assign (id, op) }
 
-  | ADD; COMMA; id = IDENT; COMMA; op1 = operand; COMMA; op2 = operand
+  | ADD; COMMA; id = ident_or_keyword; COMMA; op1 = operand; COMMA; op2 = operand
     { Add (id, op1, op2) }
-  | SUB; COMMA; id = IDENT; COMMA; op1 = operand; COMMA; op2 = operand
+  | SUB; COMMA; id = ident_or_keyword; COMMA; op1 = operand; COMMA; op2 = operand
     { Sub (id, op1, op2) }
-  | MULT; COMMA; id = IDENT; COMMA; op1 = operand; COMMA; op2 = operand
+  | MULT; COMMA; id = ident_or_keyword; COMMA; op1 = operand; COMMA; op2 = operand
     { Mult (id, op1, op2) }
-  | DIV; COMMA; id = IDENT; COMMA; op1 = operand; COMMA; op2 = operand
+  | DIV; COMMA; id = ident_or_keyword; COMMA; op1 = operand; COMMA; op2 = operand
     { Div (id, op1, op2) }
-  | AND; COMMA; id = IDENT; COMMA; op1 = operand; COMMA; op2 = operand
+  | AND; COMMA; id = ident_or_keyword; COMMA; op1 = operand; COMMA; op2 = operand
     { And (id, op1, op2) }
-  | OR; COMMA; id = IDENT; COMMA; op1 = operand; COMMA; op2 = operand
+  | OR; COMMA; id = ident_or_keyword; COMMA; op1 = operand; COMMA; op2 = operand
     { Or (id, op1, op2) }
 
-  | GOTO; COMMA; id = IDENT
+  | GOTO; COMMA; id = ident_or_keyword
     { Goto id }
 
-  | BREQ; COMMA; id = IDENT; COMMA; op1 = operand; COMMA; op2 = operand
+  | BREQ; COMMA; id = ident_or_keyword; COMMA; op1 = operand; COMMA; op2 = operand
     { Breq (id, op1, op2) }
-  | BRNEQ; COMMA; id = IDENT; COMMA; op1 = operand; COMMA; op2 = operand
+  | BRNEQ; COMMA; id = ident_or_keyword; COMMA; op1 = operand; COMMA; op2 = operand
     { Brneq (id, op1, op2) }
-  | BRLT; COMMA; id = IDENT; COMMA; op1 = operand; COMMA; op2 = operand
+  | BRLT; COMMA; id = ident_or_keyword; COMMA; op1 = operand; COMMA; op2 = operand
     { Brlt (id, op1, op2) }
-  | BRGT; COMMA; id = IDENT; COMMA; op1 = operand; COMMA; op2 = operand
+  | BRGT; COMMA; id = ident_or_keyword; COMMA; op1 = operand; COMMA; op2 = operand
     { Brgt (id, op1, op2) }
-  | BRGEQ; COMMA; id = IDENT; COMMA; op1 = operand; COMMA; op2 = operand
+  | BRGEQ; COMMA; id = ident_or_keyword; COMMA; op1 = operand; COMMA; op2 = operand
     { Brgeq (id, op1, op2) }
-  | BRLEQ; COMMA; id = IDENT; COMMA; op1 = operand; COMMA; op2 = operand
+  | BRLEQ; COMMA; id = ident_or_keyword; COMMA; op1 = operand; COMMA; op2 = operand
     { Brleq (id, op1, op2) }
   
   | RETURN; COMMA; op = operand
     { Return op }
 
-  | CALL; COMMA; fn = IDENT
+  | CALL; COMMA; fn = ident_or_keyword
     { Call (fn, []) }
-  | CALL; COMMA; fn = IDENT; COMMA; a = args
+  | CALL; COMMA; fn = ident_or_keyword; COMMA; a = args
     { Call (fn, a) }
 
-  | CALLR; COMMA; id = IDENT; COMMA; fn = IDENT
+  | CALLR; COMMA; id = ident_or_keyword; COMMA; fn = ident_or_keyword
     { Callr (id, fn, []) }
-  | CALLR; COMMA; id = IDENT; COMMA; fn = IDENT; COMMA; a = args
+  | CALLR; COMMA; id = ident_or_keyword; COMMA; fn = ident_or_keyword; COMMA; a = args
     { Callr (id, fn, a) }
 
-  | ARRAY_STORE; COMMA; op = operand; COMMA; arr = IDENT; COMMA; i = operand
+  | ARRAY_STORE; COMMA; op = operand; COMMA; arr = ident_or_keyword; COMMA; i = operand
     { ArrayStore (op, arr, i) }
-  | ARRAY_LOAD; COMMA; id = IDENT; COMMA; arr = IDENT; COMMA; i = operand
+  | ARRAY_LOAD; COMMA; id = ident_or_keyword; COMMA; arr = ident_or_keyword; COMMA; i = operand
     { ArrayLoad (id, arr, i) }
-  | ASSIGN; COMMA; arr = IDENT; COMMA; size = INT; COMMA; value = operand
+  | ASSIGN; COMMA; arr = ident_or_keyword; COMMA; size = INT; COMMA; value = operand
     { ArrayAssign (arr, size, value) }
 ;
 
@@ -188,7 +189,7 @@ operand:
     { Float (float_of_string (string_of_int i ^ "." ^ string_of_int p)) }
   | MINUS; i = INT; DOT; p = INT
     { Float (float_of_string ("-" ^ string_of_int i ^ "." ^ string_of_int p)) }
-  | id = IDENT
+  | id = ident_or_keyword
     { Ident id }
 ;
 
@@ -197,3 +198,47 @@ args:
     { [o] }
   | o = operand; COMMA; rest=args
     { o::rest }
+;
+
+ident_or_keyword:
+  | i = IDENT
+    { i }
+  | ASSIGN
+    { "assign" }
+  | ADD
+    { "add" }
+  | SUB
+    { "sub" }
+  | MULT
+    { "mult" }
+  | DIV
+    { "div" }
+  | AND
+    { "and" }
+  | OR
+    { "or" }
+  | GOTO
+    { "goto" }
+  | BREQ
+    { "breq" }
+  | BRNEQ
+    { "brneq" }
+  | BRLT
+    { "brlt" }
+  | BRGT
+    { "brgt" }
+  | BRGEQ
+    { "brgeq" }
+  | BRLEQ
+    { "brleq" }
+  | RETURN
+    { "return" }
+  | CALL
+    { "call" }
+  | CALLR
+    { "callr" }
+  | ARRAY_LOAD
+    { "array_load" }
+  | ARRAY_STORE
+    { "array_store" }
+;
