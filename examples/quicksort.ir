@@ -1,0 +1,63 @@
+#start_function
+void quicksort(int[100] A, int lo, int hi):
+int-list: mid, pivot, i, j, ti, tj, x, j1
+float-list:
+    assign, i, 0
+    assign, j, 0
+    brgeq, end, lo, hi
+    add, mid, lo, hi
+    div, mid, mid, 2
+    array_load, pivot, A, mid
+    sub, i, lo, 1
+    add, j, hi, 1
+loop0:
+loop1:
+    add, i, i, 1
+    array_load, x, A, i
+    assign, ti, x
+    brlt, loop1, ti, pivot
+loop2:
+    sub, j, j, 1
+    array_load, x, A, j
+    assign, tj, x
+    brgt, loop2, tj, pivot
+    brgeq, exit0, i, j
+    array_store, ti, A, j
+    array_store, tj, A, i
+    goto, loop0
+exit0:
+    add, j1, j, 1
+    call, quicksort, A, lo, j
+    add, j, j, 1
+    call, quicksort, A, j, hi
+end:
+#end_function
+
+#start_function
+void main():
+int-list: A[100], n, i, t
+float-list:
+    assign, t, 0
+    callr, n, geti
+    brgt, return, n, 100
+    sub, n, n, 1
+    assign, i, 0
+loop0:
+    brgt, exit0, i, n
+    callr, t, geti
+    array_store, t, A, i
+    add, i, i, 1
+    goto, loop0
+exit0:
+    call, quicksort, A, 0, n
+    assign, i, 0
+loop1:
+    brgt, exit1, i, n
+    array_load, t, A, i
+    call, puti, t
+    call, putc, 10
+    add, i, i, 1
+    goto, loop1
+exit1:
+return:
+#end_function

@@ -1,0 +1,35 @@
+#start_function
+void main():
+int-list: c
+float-list: x, err, r, pr, r2, t, t2, t3
+    assign, c, 0
+    callr, x, getf
+    assign, err, 0.000001
+    assign, r, x
+    assign, pr, r
+    assign, r2, 0.
+    assign, t, 0.
+    assign, t3, 0.
+    brlt, EXIT, x, 0.
+LABEL0:
+    mult, r2, r, r
+    sub, t2, r2, x
+    assign, t, t2
+    brgeq, LABEL1, t, 0.
+    sub, t2, 0., t
+    assign, t, t2
+LABEL1:
+    brleq, LABEL2, t, err
+    assign, pr, r
+    div, t3, x, r
+    add, t3, t3, r
+    div, t3, t3, 2.
+    assign, r, t3
+    add, c, c, 1
+    breq, LABEL2, pr, r
+    goto, LABEL0
+LABEL2:
+    call, putf, r
+    call, putc, 10
+EXIT:
+#end_function
