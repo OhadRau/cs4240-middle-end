@@ -12,6 +12,7 @@ open Graph
 *)
 
 module Vertex = struct
+  (* id, instr *)
   type t = int * Ir.instr list
 
   let compare = compare
@@ -123,7 +124,7 @@ let build instrs =
       add_fallthrough () in
   List.iteri populate_edges vertices;
 
-  g
+  g, List.hd vertices
 
 let dump_graph g =
   let display_vertex v =
@@ -140,6 +141,36 @@ let dump_graph g =
     and label = G.E.label e |> Edge.to_string in
     Printf.printf "Edge [%d -%s-> %d]\n" src_num label dst_num in
   G.iter_edges_e display_edge g
+
+let get_code g hd =
+  (* f: g: cfg -> instr list *)
+  let visited = Hashtbl.create (G.nb_vertex g) in
+  let pred_ft v =
+    (* Return if any of v's predecessor edges is a fallthrough *)
+    List.exists (fun e -> G.E.label e = `Fallthrough) (G.pred_e g v) in
+  let fold_edges e =
+    (* Handle each different type of edge/dst combo *)
+    let dst = G.E.dst e in
+    match G.E.label e with
+      | `Fallthrough -> [dst]
+      | _ when G.in_degree g dst = 1 -> [dst]
+      | _ when pred_ft dst -> []
+      | _ -> [dst] in
+  let rec traverse v =
+    (* Return empty list if the vertex has been visited *)
+    if Hashtbl.mem visited v then []
+    else begin
+      (* Mark vertex as visited *)
+      Hashtbl.add visited v ();
+      let _, block = v in
+      (* Get list of dst vertices to follow. Find and sort all successor edges,
+         fold them to get the destination vertices *)
+      let dsts = G.succ_e g v |> List.sort G.E.compare
+        |> List.map fold_edges |> List.concat in
+      block @ (List.map traverse dsts |> List.concat)
+    end in
+    (* Traverse from the root *)
+  traverse hd
 
 (* Use OCamlgraph's Graphviz module to generate a DOT file, which can
    then be used to render the graph as a PDF or image. *)

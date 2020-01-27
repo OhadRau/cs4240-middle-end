@@ -22,17 +22,27 @@ let read_file eval filename =
 
 let () =
   let eval basename prog =
+    let open Ir in
     print_endline (Format.string_of_program prog);
 
-    let print_function_cfg Ir.{name; body; _} =
-      let cfg = Cfg.build body in
+    let print_code ir cfg =
+      let g, hd = cfg in
+      let code = Cfg.get_code g hd in
+      let prog' = { ir with body = code } in
+      let text = Format.string_of_func prog' in
+      print_endline text in
+
+    let print_function_cfg ir =
+      let cfg = Cfg.build ir.body in
+      print_code ir cfg;
+      let g, _ = cfg in
       (*Cfg.dump_graph cfg in*)
-      let filename = Printf.sprintf "examples/%s-%s.dot" basename name in
+      let filename = Printf.sprintf "examples/%s-%s.dot" basename ir.name in
       let file = open_out_bin filename in
-      Cfg.Render.output_graph file cfg in
+      Cfg.Render.output_graph file g in
     
     List.iter print_function_cfg prog in
 
   read_file (eval "example") "examples/example.ir";
   read_file (eval "sqrt") "examples/sqrt.ir";
-  read_file (eval "quicksort") "examples/quicksort.ir"
+  read_file (eval "quicksort") "examples/quicksort.ir";
