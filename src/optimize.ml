@@ -33,13 +33,13 @@ let () =
       print_endline text in
 
     let print_function_cfg ir =
-      let cfg = Cfg.build ir.body in
-      print_code ir cfg;
-      let g, _ = cfg in
+      let cfg, init = Cfg.build ir.body in
+      print_code ir (cfg, init);
       (*Cfg.dump_graph cfg in*)
       let filename = Printf.sprintf "examples/%s-%s.dot" basename ir.name in
       let file = open_out_bin filename in
-      Cfg.Render.output_graph file g in
+      let _ = Analysis.init cfg in
+      Cfg.Render.output_graph file cfg in
     
     List.iter print_function_cfg prog in
 
