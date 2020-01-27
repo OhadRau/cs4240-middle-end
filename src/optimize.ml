@@ -38,7 +38,7 @@ let () =
       (*Cfg.dump_graph cfg in*)
       let filename = Printf.sprintf "examples/%s-%s.dot" basename ir.name in
       let file = open_out_bin filename in
-      let _ = Analysis.init cfg in
+      let _ = Analysis.init cfg |> Analysis.solve (cfg, init) in
       Cfg.Render.output_graph file cfg in
     
     List.iter print_function_cfg prog in

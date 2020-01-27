@@ -15,6 +15,11 @@ type t = {
 
 module VMap = Map.Make(G.V)
 
+let sets_converged =
+  let same_in_out a b =
+    VSet.equal a.in_set b.in_set && VSet.equal a.out_set b.out_set in
+  VMap.equal same_in_out
+
 (* TODO: Make these use sets, not lists! *)
 let def v =
   let n, instrs = G.V.label v in
@@ -70,12 +75,25 @@ let use v =
     | _ -> set in
   List.fold_left use_instr VSet.empty instrs
 
+let all_vars g =
+  G.fold_vertex begin fun v set ->
+    VSet.union (def v) set
+  end g VSet.empty
+
+let defs vars var =
+  VSet.filter (fun (_, name) -> name = var) vars
+
 let init g =
   let sets = VMap.empty in
+  let vars = all_vars g in
   G.fold_vertex begin fun v sets ->
+    let def_set = def v in
+    let defs_for_vars =
+      let defed_vars = VSet.elements def_set in
+      List.fold_left (fun set (_, var) -> VSet.union (defs vars var) set) VSet.empty defed_vars in
     let vset = {
-      gen_set = VSet.empty;
-      kill_set = VSet.empty;
+      gen_set = def_set;
+      kill_set = VSet.diff defs_for_vars def_set;
       in_set = VSet.empty;
       out_set = VSet.empty
     } in
@@ -84,7 +102,7 @@ let init g =
 
 let rec fixpoint (g, entry) sets f =
   let sets' = f (g, entry) sets in
-  if sets' <> sets then
+  if sets_converged sets' sets then
     fixpoint (g, entry) sets f
   else sets'
 
