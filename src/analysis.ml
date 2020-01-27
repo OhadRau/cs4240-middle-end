@@ -1,7 +1,10 @@
 open Ir
 open Cfg
 
-module VSet = Set.Make(String)
+module VSet = Set.Make(struct
+  type t = int * string
+  let compare = compare
+end)
 
 type t = {
   gen_set: VSet.t;
@@ -14,7 +17,7 @@ module VMap = Map.Make(G.V)
 
 (* TODO: Make these use sets, not lists! *)
 let def v =
-  let _, instrs = G.V.label v in
+  let n, instrs = G.V.label v in
   let def_instr set = function
     (* Q: Should call/callr assume that params are always
           read-only? *)
@@ -28,18 +31,18 @@ let def v =
     | Callr (dst, _, _)
     | ArrayStore (_, dst, _)
     | ArrayLoad (dst, _, _)
-    | ArrayAssign (dst, _, _) -> VSet.add dst set
+    | ArrayAssign (dst, _, _) -> VSet.add (n, dst) set
     | _ -> set in
   List.fold_left def_instr VSet.empty instrs
 
 let use v =
-  let _, instrs = G.V.label v in
+  let n, instrs = G.V.label v in
   let rec only_vars = function
     | (Ident s)::rest -> s::(only_vars rest)
     | _::rest -> only_vars rest
     | [] -> []
   and add_to_set set vars =
-    List.fold_left (fun set v -> VSet.add v set) set vars in
+    List.fold_left (fun set v -> VSet.add (n, v) set) set vars in
   let use_instr set = function
     | Assign (_, op)
     | Return op
