@@ -1,7 +1,7 @@
 open Ir
 open Cfg
 
-module VSet = Set.Make(G.V)
+module VSet = Set.Make(String)
 
 type t = {
   gen_set: VSet.t;
@@ -15,7 +15,7 @@ module VMap = Map.Make(G.V)
 (* TODO: Make these use sets, not lists! *)
 let def v =
   let _, instrs = G.V.label v in
-  let def_instr = function
+  let def_instr set = function
     (* Q: Should call/callr assume that params are always
           read-only? *)
     | Assign (dst, _)
@@ -28,20 +28,22 @@ let def v =
     | Callr (dst, _, _)
     | ArrayStore (_, dst, _)
     | ArrayLoad (dst, _, _)
-    | ArrayAssign (dst, _, _) -> [dst]
-    | _ -> [] in
-  List.fold_left (fun defs instr -> (def_instr instr) @ defs) [] instrs
+    | ArrayAssign (dst, _, _) -> VSet.add dst set
+    | _ -> set in
+  List.fold_left def_instr VSet.empty instrs
 
 let use v =
   let _, instrs = G.V.label v in
   let rec only_vars = function
     | (Ident s)::rest -> s::(only_vars rest)
     | _::rest -> only_vars rest
-    | [] -> [] in
-  let use_instr = function
+    | [] -> []
+  and add_to_set set vars =
+    List.fold_left (fun set v -> VSet.add v set) set vars in
+  let use_instr set = function
     | Assign (_, op)
     | Return op
-    | ArrayAssign (_, _, op) -> only_vars [op]
+    | ArrayAssign (_, _, op) -> add_to_set set (only_vars [op])
 
     | Add (_, op1, op2)
     | Sub (_, op1, op2)
@@ -55,15 +57,15 @@ let use v =
     | Brgt (_, op1, op2)
     | Brgeq (_, op1, op2)
     | Brleq (_, op1, op2)
-    | ArrayStore (op1, _, op2) -> only_vars [op1; op2]
+    | ArrayStore (op1, _, op2) -> add_to_set set (only_vars [op1; op2])
 
-    | ArrayLoad (_, op1, op2) -> op1::(only_vars [op2])
+    | ArrayLoad (_, op1, op2) -> add_to_set set (op1::(only_vars [op2]))
   
     | Call (_, ops)
-    | Callr (_, _, ops) -> only_vars ops
+    | Callr (_, _, ops) -> add_to_set set (only_vars ops)
     
-    | _ -> [] in
-  List.fold_left (fun uses instr -> (use_instr instr) @ uses) [] instrs
+    | _ -> set in
+  List.fold_left use_instr VSet.empty instrs
 
 let init g =
   let sets = VMap.empty in
