@@ -143,7 +143,6 @@ let dump_graph g =
   G.iter_edges_e display_edge g
 
 let get_code g hd =
-  (* f: g: cfg -> instr list *)
   let visited = Hashtbl.create (G.nb_vertex g) in
   let pred_ft v =
     (* Return if any of v's predecessor edges is a fallthrough *)
@@ -172,13 +171,14 @@ let get_code g hd =
     (* Traverse from the root *)
   traverse hd
 
-(* Use OCamlgraph's Graphviz module to generate a DOT file, which can
-   then be used to render the graph as a PDF or image. *)
-module type VertexFn = sig
+(* Function to format vertices' labels in the Graphviz renderer *)
+module type VertexFormatter = sig
   val f: Vertex.t -> string
 end
 
-module RenderWith(F: VertexFn) = Graphviz.Dot(struct
+(* Use OCamlgraph's Graphviz module to generate a DOT file, which can
+   then be used to render the graph as a PDF or image. *)
+module RenderWith(F: VertexFormatter) = Graphviz.Dot(struct
   include G
   
   let edge_attributes (_a, e, _b) =

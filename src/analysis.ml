@@ -20,7 +20,6 @@ let sets_converged =
     VSet.equal a.in_set b.in_set && VSet.equal a.out_set b.out_set in
   VMap.equal same_in_out
 
-(* TODO: Make these use sets, not lists! *)
 let def v =
   let n, instrs = G.V.label v in
   let def_instr set = function
@@ -138,7 +137,7 @@ let string_of_vset_elts elts =
 
 let string_of_vertex v vset =
   (*
-    Vertex[id]
+    Vertex[id]:
       IN = {...}
       OUT = {...}
       GEN = {...}

@@ -35,7 +35,6 @@ let () =
     let print_function_cfg ir =
       let cfg, init = Cfg.build ir.body in
       print_code ir (cfg, init);
-      (*Cfg.dump_graph cfg in*)
       let filename = Printf.sprintf "examples/%s-%s.dot" basename ir.name in
       let file = open_out_bin filename in
       let vmap = Analysis.init cfg |> Analysis.solve (cfg, init) in
@@ -46,4 +45,4 @@ let () =
 
   read_file (eval "example") "examples/example.ir";
   read_file (eval "sqrt") "examples/sqrt.ir";
-  read_file (eval "quicksort") "examples/quicksort.ir";
+  read_file (eval "quicksort") "examples/quicksort.ir"
