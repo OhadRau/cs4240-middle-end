@@ -174,7 +174,11 @@ let get_code g hd =
 
 (* Use OCamlgraph's Graphviz module to generate a DOT file, which can
    then be used to render the graph as a PDF or image. *)
-module Render = Graphviz.Dot(struct
+module type VertexFn = sig
+  val f: Vertex.t -> string
+end
+
+module RenderWith(F: VertexFn) = Graphviz.Dot(struct
   include G
   
   let edge_attributes (_a, e, _b) =
@@ -186,13 +190,17 @@ module Render = Graphviz.Dot(struct
 
   let get_subgraph _ = None
   
-  let vertex_attributes (_num, code) =
+  let vertex_attributes v =
     [`Shape `Box;
-     `Label (Vertex.to_string code)]
+     `Label (F.f v)]
   
   let vertex_name (num, _code) = string_of_int num
   
   let default_vertex_attributes _ = []
   
   let graph_attributes _ = []
+end)
+
+module Render = RenderWith(struct
+  let f (_num, code) = Vertex.to_string code
 end)
