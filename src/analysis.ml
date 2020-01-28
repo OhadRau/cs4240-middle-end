@@ -172,6 +172,6 @@ let render_cfg file vmap cfg =
     let f v =
       let sets = string_of_vertex_inline (VMap.find v vmap) in
       let _, code = v in
-      Vertex.to_string code ^ " " ^ sets
+      Vertex.to_string code ^ "\\n" ^ sets
   end) in
   Render.output_graph file cfg
