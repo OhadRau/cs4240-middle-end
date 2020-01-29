@@ -21,6 +21,31 @@ let read_file eval filename =
   | prog -> eval prog
 
 let () =
+  let test_remove_vertices () =
+    let display_graph name cfg =
+      let file = open_out_bin name in
+      Cfg.Render.output_graph file cfg in
+    let g, _ = Cfg.build Ir.[
+      Label "start";
+        Assign ("a", Int 0);
+      Label "loop";
+        Brgeq ("done", Ident "a", Int 10);
+        Call ("puti", [Ident "a"]);
+        Add ("a", Ident "a", Int 1);
+        Goto "loop";
+      Label "done";
+        Call ("puti", [Ident "a"])
+    ] in
+    let deletable = Ir.[
+      Cfg.G.V.create (4, [Call ("puti", [Ident "a"])]);
+      Cfg.G.V.create (5, [Add ("a", Ident "a", Int 1)])
+    ] in
+
+    display_graph "before.dot" g;
+    Cfg.remove_vertices g deletable;
+    display_graph "after.dot" g in
+  test_remove_vertices ();
+
   let eval basename prog =
     let open Ir in
     print_endline (Format.string_of_program prog);

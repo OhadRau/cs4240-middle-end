@@ -171,6 +171,33 @@ let get_code g hd =
     (* Traverse from the root *)
   traverse hd
 
+let remove_vertices g vs =
+  (* Create a mapping of each old vertex to its new 
+     "replacement" vertex *)
+  let mappings = Hashtbl.create (G.nb_vertex g) in
+  G.iter_vertex (fun v -> Hashtbl.add mappings v v) g;
+  (* For each vertex that needs to be deleted *)
+  List.iter begin fun v ->
+    (* Find its successor & look up its replacement *)
+    let succs = G.succ g v in
+    match succs with
+    | [succ] ->
+      let real_succ = Hashtbl.find mappings succ in
+      (* Update the mappings to say this vertex has been moved *)
+      Hashtbl.replace mappings v real_succ;
+      (* Find the predecessors of the old vertex *)
+      let preds = G.pred_e g v in
+      (* For each predecessor, look up its replacement and add
+         an edge from the replacement to this edge *)
+      List.iter begin fun (pred, kind, _) ->
+        let real_pred = Hashtbl.find mappings pred in
+        G.add_edge_e g (G.E.create real_pred kind real_succ)
+      end preds;
+      (* And finally delete the vertex *)
+      G.remove_vertex g v
+    | _ -> failwith "Can't remove vertex with more than one successor"
+  end vs
+
 (* Function to format vertices' labels in the Graphviz renderer *)
 module type VertexFormatter = sig
   val f: Vertex.t -> string
