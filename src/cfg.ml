@@ -181,6 +181,8 @@ let remove_vertices g vs =
     (* Find its successor & look up its replacement *)
     let succs = G.succ g v in
     match succs with
+    | [] ->
+      G.remove_vertex g v
     | [succ] ->
       let real_succ = Hashtbl.find mappings succ in
       (* Update the mappings to say this vertex has been moved *)
@@ -195,8 +197,20 @@ let remove_vertices g vs =
       end preds;
       (* And finally delete the vertex *)
       G.remove_vertex g v
-    | _ -> failwith "Can't remove vertex with more than one successor"
+    | _ ->
+      let id, _ = v in
+      let msg =
+        Printf.sprintf "Can't remove vertex %d with more than one successor" id in
+      failwith msg
   end vs
+
+let hashtbl_of_cfg g =
+  let hashtbl = Hashtbl.create (G.nb_vertex g) in
+  let add_mapping v =
+    let id, _ = v in
+    Hashtbl.add hashtbl id v in
+  G.iter_vertex add_mapping g;
+  hashtbl
 
 (* Function to format vertices' labels in the Graphviz renderer *)
 module type VertexFormatter = sig
