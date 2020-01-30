@@ -15,11 +15,12 @@ type t = {
 
 module VMap = Map.Make(G.V)
 
-let sets_converged =
+
+let sets_converged left right =
   let same_in_out a b =
     VSet.equal a.in_set b.in_set && VSet.equal a.out_set b.out_set in
-  VMap.equal same_in_out
-
+  VMap.equal same_in_out left right
+ 
 let def v =
   let n, instrs = G.V.label v in
   let def_instr set = function
@@ -100,8 +101,9 @@ let init g =
 let rec fixpoint (g, entry) sets f =
   let sets' = f (g, entry) sets in
   if sets_converged sets' sets then
-    fixpoint (g, entry) sets f
-  else sets'
+    sets
+  else
+    fixpoint (g, entry) sets' f
 
 let solve (g, entry) sets =
   let f (g, entry) sets =
@@ -116,7 +118,9 @@ let solve (g, entry) sets =
             let { out_set; _ } = VMap.find pred sets in
             out_set
           end preds in
+        (* In = U{p in preds[v]}. out[p] *)
         let in_set = List.fold_left VSet.union VSet.empty pred_outs in
+        (* Out = gen[v] U (in[v] - kill[v]) *)
         let out_set = VSet.union gen_set (VSet.diff in_set kill_set) in
         let sets' = VMap.add node { gen_set; kill_set; in_set; out_set } sets in
         let outgoing = G.succ g node in
@@ -194,14 +198,16 @@ let collect_dead_code cfg vmap =
   let cfg_tbl = Cfg.hashtbl_of_cfg cfg in
   let marked_v = Hashtbl.create (G.nb_vertex cfg) in
   let mark_and_worklist v mlist wlist =
-    Hashtbl.add mlist v v;
-    Queue.add v wlist in
+    if not (Hashtbl.mem mlist v) then begin
+      Hashtbl.add mlist v v;
+      Queue.add v wlist
+    end else () in
   let mark () =
     let worklist = Queue.create () in
     let mark_crit v =
       let _, inst = v in
       if List.exists is_critical inst then begin
-        mark_and_worklist v marked_v worklist;
+        mark_and_worklist v marked_v worklist
       end else () in
     (* Mark all critical instructions and add them to the worklist *)
     G.iter_vertex mark_crit cfg;
@@ -215,7 +221,7 @@ let collect_dead_code cfg vmap =
         (* Mark reaching defs and add them to the queue *)
         let ident_match elt =
           let _, var = elt in
-          var == ident in
+          var = ident in
         let reaching_defs = VSet.filter ident_match in_set in
         let mark_reaching_def elt =
           (* Get vertex from id then then mark and add it to the worklist *)
