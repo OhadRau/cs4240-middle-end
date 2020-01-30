@@ -70,14 +70,24 @@ let eval_verbose basename prog =
   
   List.iter print_function_cfg prog
 
-let eval out_filename prog =
+let eval out_filename ~gen_cfg ~gen_opt_cfg prog =
   let open Ir in
-  let out_file = open_out out_filename in
+  let out_file = open_out out_filename
+  and basename = Filename.remove_extension out_filename in
+  let print_cfg cfg ext =
+    let cfg_file = open_out_bin (basename ^ ext) in
+    Cfg.Render.output_graph cfg_file cfg in
   let optimize_fn fn =
     let cfg, init = Cfg.build fn.body in
+
+    if !gen_cfg then print_cfg cfg ".dot";
+
     let vmap = Analysis.init cfg |> Analysis.solve (cfg, init) in
     let dead_code = Analysis.collect_dead_code cfg vmap in
     Cfg.remove_vertices cfg dead_code;
+
+    if !gen_opt_cfg then print_cfg cfg ".opt.dot";
+
     let new_init = Cfg.first_instr cfg in
     let optimized_body = Cfg.get_code cfg new_init in
     { fn with body = optimized_body } in
@@ -87,14 +97,24 @@ let eval out_filename prog =
 
 let () =
   let in_filename = ref ""
-  and out_filename = ref "" in
+  and out_filename = ref ""
+  and gen_cfg = ref false
+  and gen_opt_cfg = ref false in
   let arg_spec = Arg.[
     "-i", Set_string in_filename, "Input IR file";
-    "-o", Set_string out_filename, "Output IR file"
+    "-o", Set_string out_filename, "Output IR file";
+    "--gen-cfg", Set gen_cfg, "Generate a CFG for the (unoptimized) program";
+    "--gen-opt-cfg", Set gen_opt_cfg, "Generate a CFG for the (optimized) program"
   ] in
   let program_name = Sys.argv.(0) in
   Arg.parse arg_spec ignore (Printf.sprintf "Usage: %s -i <input_file> -o <output_file>\n" program_name);
-  if !in_filename = "" then Printf.eprintf "Error: No input file passed given!\n";
-  if !out_filename = "" then Printf.eprintf "Error: No output file passed given!\n";
+  if !in_filename = "" then begin
+    Printf.eprintf "Error: No input file passed given!\n";
+    exit 1
+  end;
+  if !out_filename = "" then begin
+    Printf.eprintf "Error: No output file passed given!\n";
+    exit 1
+  end;
 
-  read_file (eval !out_filename) !in_filename
+  read_file (eval !out_filename ~gen_cfg ~gen_opt_cfg) !in_filename
