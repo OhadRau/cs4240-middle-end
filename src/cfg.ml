@@ -142,6 +142,20 @@ let dump_graph g =
     Printf.printf "Edge [%d -%s-> %d]\n" src_num label dst_num in
   G.iter_edges_e display_edge g
 
+(* Get the first instruction in a program by its vertex number *)
+let first_instr g =
+  let found =
+    G.fold_vertex begin fun v acc ->
+      let v_id, _ = v in
+      match acc with
+      | Some (old_id, _) when v_id < old_id -> Some v
+      | Some (_, _) -> acc
+      | None -> Some v
+    end g None in
+  match found with
+  | Some init -> init
+  | None -> failwith "Could not find a first instruction for the program"
+
 let get_code g hd =
   let visited = Hashtbl.create (G.nb_vertex g) in
   let pred_ft v =
