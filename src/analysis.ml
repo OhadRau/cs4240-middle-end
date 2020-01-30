@@ -40,17 +40,15 @@ let def v =
   List.fold_left def_instr VSet.empty instrs
 
 let use v =
-  let n, instrs = G.V.label v in
+  let _, instrs = G.V.label v in
   let rec only_vars = function
     | (Ident s)::rest -> s::(only_vars rest)
     | _::rest -> only_vars rest
-    | [] -> []
-  and add_to_set set vars =
-    List.fold_left (fun set v -> VSet.add (n, v) set) set vars in
-  let use_instr set = function
+    | [] -> [] in
+  let use_instr = function
     | Assign (_, op)
     | Return op
-    | ArrayAssign (_, _, op) -> add_to_set set (only_vars [op])
+    | ArrayAssign (_, _, op) -> only_vars [op]
 
     | Add (_, op1, op2)
     | Sub (_, op1, op2)
@@ -64,15 +62,15 @@ let use v =
     | Brgt (_, op1, op2)
     | Brgeq (_, op1, op2)
     | Brleq (_, op1, op2)
-    | ArrayStore (op1, _, op2) -> add_to_set set (only_vars [op1; op2])
+    | ArrayStore (op1, _, op2) -> only_vars [op1; op2]
 
-    | ArrayLoad (_, op1, op2) -> add_to_set set (op1::(only_vars [op2]))
+    | ArrayLoad (_, op1, op2) -> op1::(only_vars [op2])
   
     | Call (_, ops)
-    | Callr (_, _, ops) -> add_to_set set (only_vars ops)
+    | Callr (_, _, ops) -> only_vars ops
     
-    | _ -> set in
-  List.fold_left use_instr VSet.empty instrs
+    | _ -> [] in
+  List.map use_instr instrs |> List.concat
 
 let all_vars g =
   G.fold_vertex begin fun v set ->
