@@ -70,9 +70,8 @@ let eval_verbose basename prog =
   
   List.iter print_function_cfg prog
 
-let eval basename prog =
+let eval out_filename prog =
   let open Ir in
-  let out_filename = Printf.sprintf "%s-optimized.ir" basename in
   let out_file = open_out out_filename in
   let optimize_fn fn =
     let cfg, init = Cfg.build fn.body in
@@ -87,6 +86,15 @@ let eval basename prog =
   output_string out_file formatted
 
 let () =
-  read_file (eval "example") "examples/example.ir";
-  read_file (eval "sqrt") "examples/sqrt.ir";
-  read_file (eval "quicksort") "examples/quicksort.ir"
+  let in_filename = ref ""
+  and out_filename = ref "" in
+  let arg_spec = Arg.[
+    "-i", Set_string in_filename, "Input IR file";
+    "-o", Set_string out_filename, "Output IR file"
+  ] in
+  let program_name = Sys.argv.(0) in
+  Arg.parse arg_spec ignore (Printf.sprintf "Usage: %s -i <input_file> -o <output_file>\n" program_name);
+  if !in_filename = "" then Printf.eprintf "Error: No input file passed given!\n";
+  if !out_filename = "" then Printf.eprintf "Error: No output file passed given!\n";
+
+  read_file (eval !out_filename) !in_filename

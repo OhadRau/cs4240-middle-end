@@ -7,5 +7,6 @@ The easiest way to install these is through the [`opam` package manager](https:/
 
 ```
 $ dune build src/optimize.exe
-$ dune exec src/optimize.exe
+$ _build/default/src/optimize.exe -i <input_file> -o <output_file>
+# Or $ dune exec src/optimize-exe -- -i <input_file> -o <output_file>
 ```
