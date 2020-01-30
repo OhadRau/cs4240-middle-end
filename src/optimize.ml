@@ -63,8 +63,13 @@ let () =
       let filename = Printf.sprintf "examples/%s-%s.dot" basename ir.name in
       let file = open_out_bin filename in
       let vmap = Analysis.init cfg |> Analysis.solve (cfg, init) in
-      Analysis.print_vmap vmap;
-      Analysis.render_cfg file vmap cfg in
+      let dead_code = Analysis.collect_dead_code cfg vmap in
+      print_endline "--------------------";
+      List.iter (fun (_, inst) -> print_endline (List.map Format.string_of_instr inst |> String.concat "\n")) dead_code;
+      Cfg.remove_vertices cfg dead_code;
+      (*Analysis.print_vmap vmap;*)
+      (*Analysis.render_cfg file vmap cfg;*)
+      Cfg.Render.output_graph file cfg in
     
     List.iter print_function_cfg prog in
 

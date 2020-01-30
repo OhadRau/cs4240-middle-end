@@ -172,3 +172,64 @@ let render_cfg file vmap cfg =
       Vertex.to_string code ^ "\\n" ^ sets
   end) in
   Render.output_graph file cfg
+
+let is_critical = function
+  | Label(_)
+  | Goto(_)
+  | Breq(_)
+  | Brneq(_)
+  | Brlt(_)
+  | Brgt(_)
+  | Brgeq(_)
+  | Brleq(_)
+  | Return(_)
+  | Call(_)
+  | Callr(_)
+  | ArrayStore(_)
+  | ArrayAssign(_) -> true
+  | _ -> false
+
+let collect_dead_code cfg vmap = 
+  (* Collect dead code. It is the caller's responsibility to remove it. *)
+  let cfg_tbl = Cfg.hashtbl_of_cfg cfg in
+  let marked_v = Hashtbl.create (G.nb_vertex cfg) in
+  let mark_and_worklist v mlist wlist =
+    Hashtbl.add mlist v v;
+    Queue.add v wlist in
+  let mark () =
+    let worklist = Queue.create () in
+    let mark_crit v =
+      let _, inst = v in
+      if List.exists is_critical inst then begin
+        mark_and_worklist v marked_v worklist;
+      end else () in
+    (* Mark all critical instructions and add them to the worklist *)
+    G.iter_vertex mark_crit cfg;
+    (* Iterate over each element in the worklist until it is empty *)
+    while not (Queue.is_empty worklist) do
+      let v = Queue.pop worklist in
+      (* Get the ops used by the instruction and find there reaching defs *)
+      let uses = use v in
+      let {in_set; _} = VMap.find v vmap in
+      let reaching_def ident =
+        (* Mark reaching defs and add them to the queue *)
+        let ident_match elt =
+          let _, var = elt in
+          var == ident in
+        let reaching_defs = VSet.filter ident_match in_set in
+        let mark_reaching_def elt =
+          (* Get vertex from id then then mark and add it to the worklist *)
+          let id, _ = elt in
+          let reaching_v = Hashtbl.find cfg_tbl id in
+          mark_and_worklist reaching_v marked_v worklist in
+        VSet.iter mark_reaching_def reaching_defs in
+      List.iter reaching_def uses
+    done in
+  let sweep () =
+    let fold_dead_code v acc =
+      if Hashtbl.mem marked_v v then
+        acc
+      else v::acc in
+    G.fold_vertex fold_dead_code cfg [] in
+  mark ();
+  sweep ()
