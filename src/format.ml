@@ -20,7 +20,7 @@ let string_of_dataSegment = function
 
 let string_of_operand = function
   | Int i -> string_of_int i
-  | Float f -> string_of_float f
+  | Float f -> Printf.sprintf "%f" f
   | Ident id -> id
 
 let string_of_label label = label
