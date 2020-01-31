@@ -203,14 +203,15 @@ let collect_dead_code cfg vmap =
       Queue.add v wlist
     end else () in
   let mark () =
+    (* Mark dead code *)
     let worklist = Queue.create () in
-    let mark_crit v =
+    (* Mark all critical instructions and add them to the worklist *)
+    G.iter_vertex begin fun v ->
       let _, inst = v in
       if List.exists is_critical inst then begin
         mark_and_worklist v marked_v worklist
-      end else () in
-    (* Mark all critical instructions and add them to the worklist *)
-    G.iter_vertex mark_crit cfg;
+      end else ()
+    end cfg;
     (* Iterate over each element in the worklist until it is empty *)
     while not (Queue.is_empty worklist) do
       let v = Queue.pop worklist in
@@ -219,10 +220,10 @@ let collect_dead_code cfg vmap =
       let {in_set; _} = VMap.find v vmap in
       let reaching_def ident =
         (* Mark reaching defs and add them to the queue *)
-        let ident_match elt =
+        let reaching_defs = VSet.filter begin fun elt ->
           let _, var = elt in
-          var = ident in
-        let reaching_defs = VSet.filter ident_match in_set in
+          var = ident
+        end in_set in
         let mark_reaching_def elt =
           (* Get vertex from id then then mark and add it to the worklist *)
           let id, _ = elt in
@@ -232,6 +233,7 @@ let collect_dead_code cfg vmap =
       List.iter reaching_def uses
     done in
   let sweep () =
+    (* Generate list of dead vertices *)
     let fold_dead_code v acc =
       if Hashtbl.mem marked_v v then
         acc
