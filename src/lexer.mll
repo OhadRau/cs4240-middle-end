@@ -23,7 +23,7 @@ rule read = parse
   | white     { read lexbuf }
   | newline   { next_line lexbuf; EOL }
 
-  | int as i    { INT (int_of_string i) }
+  | int as i    { INT i }
 
   | '.' { DOT }
   | ',' { COMMA }

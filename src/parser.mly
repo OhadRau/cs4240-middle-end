@@ -1,4 +1,4 @@
-%token <int>    INT
+%token <string> INT
 %token <string> IDENT
 
 %token MINUS
@@ -86,7 +86,7 @@ params:
 ;
 
 irType:
-  | ty = irType; LEFT_BRACKET; i = INT; RIGHT_BRACKET
+  | ty = irType; LEFT_BRACKET; i = int; RIGHT_BRACKET
     { TyArray (ty, i) }
   | TY_INT   { TyInt }
   | TY_FLOAT { TyFloat }
@@ -109,7 +109,7 @@ dataNames:
 dataName:
   | id = ident_or_keyword
     { Scalar id }
-  | id = ident_or_keyword; LEFT_BRACKET; size = INT; RIGHT_BRACKET
+  | id = ident_or_keyword; LEFT_BRACKET; size = int; RIGHT_BRACKET
     { Array (id, size) }
 
 codeSegment:
@@ -172,23 +172,23 @@ instr:
     { ArrayStore (op, arr, i) }
   | ARRAY_LOAD; COMMA; id = ident_or_keyword; COMMA; arr = ident_or_keyword; COMMA; i = operand
     { ArrayLoad (id, arr, i) }
-  | ASSIGN; COMMA; arr = ident_or_keyword; COMMA; size = INT; COMMA; value = operand
+  | ASSIGN; COMMA; arr = ident_or_keyword; COMMA; size = int; COMMA; value = operand
     { ArrayAssign (arr, size, value) }
 ;
 
 operand:
-  | i = INT
+  | i = int
     { Int i }
-  | MINUS; i = INT
+  | MINUS; i = int
     { Int (-i) }
   | i = INT; DOT
-    { Float (float_of_int i) }
+    { Float (float_of_string i) }
   | DOT; p = INT
-    { Float (float_of_string ("." ^ string_of_int p)) }
+    { Float (float_of_string ("." ^ p)) }
   | i = INT; DOT; p = INT
-    { Float (float_of_string (string_of_int i ^ "." ^ string_of_int p)) }
+    { Float (float_of_string (i ^ "." ^ p)) }
   | MINUS; i = INT; DOT; p = INT
-    { Float (float_of_string ("-" ^ string_of_int i ^ "." ^ string_of_int p)) }
+    { Float (float_of_string ("-" ^ i ^ "." ^ p)) }
   | id = ident_or_keyword
     { Ident id }
 ;
@@ -241,4 +241,9 @@ ident_or_keyword:
     { "array_load" }
   | ARRAY_STORE
     { "array_store" }
+;
+
+int:
+  | i = INT
+    { int_of_string i }
 ;
