@@ -1,8 +1,13 @@
 #!/bin/bash
-IN=examples/*ir
+./run.sh
 
-for f in $IN
+EXP=expected/*ir
+
+for f in $EXP
 do
-	BASENAME=$(basename $f)
-	dune exec src/optimize.exe -- -i $f -o out/$BASENAME
+    BASENAME=$(basename $f)
+    [[ `diff $f out/$BASENAME` ]] &&
+	(echo "$BASENAME: fails (files differ)") ||
+	(echo "$BASENAME: passes (files are the same)")
 done
+	 
