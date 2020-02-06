@@ -32,3 +32,5 @@ runtime/out
 
 examples/*.dot
 *.dot
+
+out/
