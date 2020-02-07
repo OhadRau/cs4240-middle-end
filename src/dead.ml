@@ -2,46 +2,77 @@ open Ir
 open Cfg
 open Analysis
 
-let init g =
-  let sets = VMap.empty in
-  let vars = all_vars g in
-  G.fold_vertex begin fun v sets ->
-    let def_set = def v in
-    let defs_for_vars =
-      let defed_vars = VSet.elements def_set in
-      List.fold_left (fun set (_, var) -> VSet.union (defs vars var) set) VSet.empty defed_vars in
-    let vset = {
-      gen_set = def_set;
-      kill_set = VSet.diff defs_for_vars def_set;
-      in_set = VSet.empty;
-      out_set = VSet.empty
-    } in
-    VMap.add v vset sets
-  end g sets
+type t = int * string
+module VSet = Set.Make(struct
+  type t = int * string
+  let compare = compare
+end)
 
-let solve (g, entry) sets =
-  let f (g, entry) sets =
-    let visited = Hashtbl.create (G.nb_vertex g) in
-    let rec traverse sets node =
-      if not (Hashtbl.mem visited node) then begin
-        Hashtbl.add visited node ();
-        let { gen_set; kill_set; _ } = VMap.find node sets
-        and pred_outs =
-          let preds = G.pred g node in
-          List.map begin fun pred ->
-            let { out_set; _ } = VMap.find pred sets in
-            out_set
-          end preds in
-        (* In = U{p in preds[v]}. out[p] *)
-        let in_set = List.fold_left VSet.union VSet.empty pred_outs in
-        (* Out = gen[v] U (in[v] - kill[v]) *)
-        let out_set = VSet.union gen_set (VSet.diff in_set kill_set) in
-        let sets' = VMap.add node { gen_set; kill_set; in_set; out_set } sets in
-        let outgoing = G.succ g node in
-        List.fold_left traverse sets' outgoing
-      end else sets in
-    traverse sets entry in
-  fixpoint (g, entry) sets f
+let def v =
+  let n, instrs = G.V.label v in
+  let def_instr set = function
+    (* Q: Should call/callr assume that params are always
+          read-only? *)
+    | Assign (dst, _)
+    | Add (dst, _, _)
+    | Sub (dst, _, _)
+    | Mult (dst, _, _)
+    | Div (dst, _, _)
+    | And (dst, _, _)
+    | Or (dst, _, _)
+    | Callr (dst, _, _)
+    | ArrayStore (_, dst, _)
+    | ArrayLoad (dst, _, _)
+    | ArrayAssign (dst, _, _) -> VSet.add (n, dst) set
+    | _ -> set in
+  List.fold_left def_instr VSet.empty instrs
+
+let defs vars name =
+  (* Find defs with given name *)
+  VSet.filter (fun (_, var) -> var = name) vars
+
+let init_fold vars v sets =
+  let def_set = def v in
+  let defs_for_vars =
+    let defed_vars = VSet.elements def_set in
+    List.fold_left (fun set (_, var) -> VSet.union (defs vars var) set) VSet.empty defed_vars in
+  let vset = {
+    gen_set = def_set;
+    kill_set = VSet.diff defs_for_vars def_set;
+    in_set = VSet.empty;
+    out_set = VSet.empty
+  } in
+  VMap.add v vset sets
+
+let solve_traverse (g, entry) sets =
+  let visited = Hashtbl.create (G.nb_vertex g) in
+  let rec traverse sets node =
+    if not (Hashtbl.mem visited node) then begin
+      Hashtbl.add visited node ();
+      let { gen_set; kill_set; _ } = VMap.find node sets
+      and pred_outs =
+        let preds = G.pred g node in
+        List.map begin fun pred ->
+          let { out_set; _ } = VMap.find pred sets in
+          out_set
+        end preds in
+      (* In = U{p in preds[v]}. out[p] *)
+      let in_set = List.fold_left VSet.union VSet.empty pred_outs in
+      (* Out = gen[v] U (in[v] - kill[v]) *)
+      let out_set = VSet.union gen_set (VSet.diff in_set kill_set) in
+      let sets' = VMap.add node { gen_set; kill_set; in_set; out_set } sets in
+      let outgoing = G.succ g node in
+      List.fold_left traverse sets' outgoing
+    end else sets in
+  traverse sets entry
+
+let string_of_t elts =
+  (* {...} *)
+  let string_of_vset_elt elt =
+    (* (line, variable) *)
+    let id, var = elt in
+    Printf.sprintf "(%d, %s)" id var in
+  String.concat ", " (List.map string_of_vset_elt elts)
 
 let is_critical = function
   | Label(_)

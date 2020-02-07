@@ -1,43 +1,98 @@
 open Ir
 open Cfg
 
-module VSet = Set.Make(struct
-  type t = int * string
-  let compare = compare
-end)
-
-type t = {
-  gen_set: VSet.t;
-  kill_set: VSet.t;
-  in_set: VSet.t;
-  out_set: VSet.t
+type 'a dataflow_sets = {
+  gen_set: 'a;
+  kill_set: 'a;
+  in_set: 'a;
+  out_set: 'a
 }
 
 module VMap = Map.Make(G.V)
 
-let sets_converged left right =
-  let same_in_out a b =
-    VSet.equal a.in_set b.in_set && VSet.equal a.out_set b.out_set in
-  VMap.equal same_in_out left right
- 
-let def v =
-  let n, instrs = G.V.label v in
-  let def_instr set = function
-    (* Q: Should call/callr assume that params are always
-          read-only? *)
-    | Assign (dst, _)
-    | Add (dst, _, _)
-    | Sub (dst, _, _)
-    | Mult (dst, _, _)
-    | Div (dst, _, _)
-    | And (dst, _, _)
-    | Or (dst, _, _)
-    | Callr (dst, _, _)
-    | ArrayStore (_, dst, _)
-    | ArrayLoad (dst, _, _)
-    | ArrayAssign (dst, _, _) -> VSet.add (n, dst) set
-    | _ -> set in
-  List.fold_left def_instr VSet.empty instrs
+module type Dataflow = sig
+  (* Type of an element in the VSet *)
+  type t
+  module VSet: Set.S with type elt = t
+  (* Find all the definitions in a vertex *)
+  val def: Vertex.t -> VSet.t
+  (* Fold function for implementing folding the vertices to a map *)
+  val init_fold: VSet.t -> Vertex.t -> (VSet.t dataflow_sets) VMap.t -> (VSet.t dataflow_sets) VMap.t
+  (* Solve the data flow equations *)
+  val solve_traverse: G.t * Vertex.t -> (VSet.t dataflow_sets) VMap.t -> (VSet.t dataflow_sets) VMap.t
+  (* Convert t to a string *)
+  val string_of_t: t list -> string
+end
+
+module Make(D: Dataflow) = struct
+  module VSet = D.VSet
+  type t = VSet.t dataflow_sets
+
+  let sets_converged left right =
+    let same_in_out a b =
+      VSet.equal a.in_set b.in_set && VSet.equal a.out_set b.out_set in
+    VMap.equal same_in_out left right
+
+  let all_vars g =
+    G.fold_vertex begin fun v set ->
+      VSet.union (D.def v) set
+    end g VSet.empty
+
+  let rec fixpoint (g, entry) sets f =
+    let sets' = f (g, entry) sets in
+    if sets_converged sets' sets then
+      sets
+    else
+      fixpoint (g, entry) sets' f
+  
+  let init g =
+    let sets = VMap.empty in
+    let vars = all_vars g in
+    G.fold_vertex (D.init_fold vars) g sets
+
+  let solve (g, entry) sets =
+    fixpoint (g, entry) sets D.solve_traverse
+
+  let string_of_vertex v vset =
+    (*
+      Vertex[id]:
+        IN = {...}
+        OUT = {...}
+        GEN = {...}
+        KILL = {...}
+    *)
+    let v_id, _ = v in
+    let format_set set =
+      D.string_of_t (VSet.elements set) in
+    Printf.sprintf {|
+      Vertex[%d]:
+        IN = {%s}
+        OUT = {%s}
+        GEN = {%s}
+        KILL = {%s}
+    |} v_id (format_set vset.in_set) (format_set vset.out_set) (format_set vset.gen_set) (format_set vset.kill_set)
+  
+  let string_of_vertex_inline vset =
+    (* Vertex[id]: IN={...} | OUT={...} | GEN={...} | KILL={...} *)
+    let format_set set =
+      D.string_of_t (VSet.elements set) in
+    Printf.sprintf "(IN={%s} | OUT={%s} | GEN={%s} | KILL={%s})"
+      (format_set vset.in_set) (format_set vset.out_set) (format_set vset.gen_set) (format_set vset.kill_set)
+
+  let print_vmap vmap =
+    let print_vset v vset =
+      print_endline (string_of_vertex v vset) in
+    VMap.iter print_vset vmap
+
+  let render_cfg file vmap cfg =
+    let module Render = RenderWith(struct
+      let f v =
+        let sets = string_of_vertex_inline (VMap.find v vmap) in
+        let _, code = v in
+        Vertex.to_string code ^ "\\n" ^ sets
+    end) in
+    Render.output_graph file cfg
+end
 
 let use v =
   let _, instrs = G.V.label v in
@@ -71,66 +126,3 @@ let use v =
     
     | _ -> [] in
   List.map use_instr instrs |> List.concat
-
-let all_vars g =
-  G.fold_vertex begin fun v set ->
-    VSet.union (def v) set
-  end g VSet.empty
-
-let defs vars var =
-  VSet.filter (fun (_, name) -> name = var) vars
-
-let rec fixpoint (g, entry) sets f =
-  let sets' = f (g, entry) sets in
-  if sets_converged sets' sets then
-    sets
-  else
-    fixpoint (g, entry) sets' f
-
-let string_of_vset_elts elts =
-  (* {...} *)
-  let string_of_vset_elt elt =
-    (* (line, variable) *)
-    let id, var = elt in
-    Printf.sprintf "(%d, %s)" id var in
-  String.concat ", " (List.map string_of_vset_elt elts)
-
-let string_of_vertex v vset =
-  (*
-    Vertex[id]:
-      IN = {...}
-      OUT = {...}
-      GEN = {...}
-      KILL = {...}
-  *)
-  let v_id, _ = v in
-  let format_set set =
-    string_of_vset_elts (VSet.elements set) in
-  Printf.sprintf {|
-    Vertex[%d]:
-      IN = {%s}
-      OUT = {%s}
-      GEN = {%s}
-      KILL = {%s}
-  |} v_id (format_set vset.in_set) (format_set vset.out_set) (format_set vset.gen_set) (format_set vset.kill_set)
-
-let string_of_vertex_inline vset =
-  (* Vertex[id]: IN={...} | OUT={...} | GEN={...} | KILL={...} *)
-  let format_set set =
-    string_of_vset_elts (VSet.elements set) in
-  Printf.sprintf "(IN={%s} | OUT={%s} | GEN={%s} | KILL={%s})"
-    (format_set vset.in_set) (format_set vset.out_set) (format_set vset.gen_set) (format_set vset.kill_set)
-
-let print_vmap vmap =
-  let print_vset v vset =
-    print_endline (string_of_vertex v vset) in
-  VMap.iter print_vset vmap
-  
-let render_cfg file vmap cfg =
-  let module Render = RenderWith(struct
-    let f v =
-      let sets = string_of_vertex_inline (VMap.find v vmap) in
-      let _, code = v in
-      Vertex.to_string code ^ "\\n" ^ sets
-  end) in
-  Render.output_graph file cfg
