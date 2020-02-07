@@ -3,6 +3,8 @@ set -e
 
 IN=examples/*ir
 
+mkdir -p out
+
 for f in $IN
 do
 	BASENAME=$(basename $f)
