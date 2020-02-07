@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+
 ./run.sh
 
 EXP=expected/*ir

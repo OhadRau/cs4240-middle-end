@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+
 IN=examples/*ir
 
 for f in $IN
