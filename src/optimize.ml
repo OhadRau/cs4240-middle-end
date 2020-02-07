@@ -60,9 +60,9 @@ let eval_verbose basename prog =
     print_code ir (cfg, init);
     let filename = Printf.sprintf "examples/%s-%s.dot" basename ir.name in
     let file = open_out_bin filename in
-    let vmap = Analysis.init cfg |> Analysis.solve (cfg, init) in
+    let vmap = Dead.init cfg |> Dead.solve (cfg, init) in
     Analysis.render_cfg file vmap cfg;
-    let dead_code = Analysis.collect_dead_code cfg vmap in
+    let dead_code = Dead.collect_dead_code cfg vmap in
     List.iter (fun (_, inst) -> print_endline (List.map Format.string_of_instr inst |> String.concat "\n")) dead_code;
     Cfg.remove_vertices cfg dead_code;
     (*Analysis.print_vmap vmap;*)
@@ -82,8 +82,8 @@ let eval out_filename ~gen_cfg ~gen_opt_cfg prog =
 
     if !gen_cfg then print_cfg cfg ".dot";
 
-    let vmap = Analysis.init cfg |> Analysis.solve (cfg, init) in
-    let dead_code = Analysis.collect_dead_code cfg vmap in
+    let vmap = Dead.init cfg |> Dead.solve (cfg, init) in
+    let dead_code = Dead.collect_dead_code cfg vmap in
     Cfg.remove_vertices cfg dead_code;
 
     if !gen_opt_cfg then print_cfg cfg ".opt.dot";
