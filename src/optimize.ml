@@ -1,6 +1,7 @@
 open Lexing
 
 module DCE = Analysis.Make(Dead)
+module COPY = Analysis.Make(Copy)
 
 let string_of_position filename lexbuf =
   let pos = lexbuf.lex_curr_p in
@@ -62,13 +63,17 @@ let eval_verbose basename prog =
     print_code ir (cfg, init);
     let filename = Printf.sprintf "examples/%s-%s.dot" basename ir.name in
     let file = open_out_bin filename in
-    let vmap = DCE.init cfg |> DCE.solve (cfg, init) in
-    DCE.render_cfg file vmap cfg;
-    let dead_code = Dead.collect_dead_code cfg vmap in
-    List.iter (fun (_, inst) -> print_endline (List.map Format.string_of_instr inst |> String.concat "\n")) dead_code;
-    Cfg.remove_vertices cfg dead_code;
-    (*Analysis.print_vmap vmap;*)
-    (*Cfg.Render.output_graph file cfg*) in
+    (* Dead code elimination *)
+    (* let vmap = DCE.init cfg |> DCE.solve (cfg, init) in *)
+    (* DCE.render_cfg file vmap cfg; *)
+    (* let dead_code = Dead.collect_dead_code cfg vmap in *)
+    (* List.iter (fun (_, inst) -> print_endline (List.map Format.string_of_instr inst |> String.concat "\n")) dead_code; *)
+    (* Cfg.remove_vertices cfg dead_code; *)
+    (* Copy propagation *)
+    let vmap = COPY.init cfg |> COPY.solve (cfg, init) in
+    COPY.render_cfg file vmap cfg;
+    COPY.print_vmap vmap;
+    Cfg.Render.output_graph file cfg in
   
   List.iter print_function_cfg prog
 
@@ -84,9 +89,14 @@ let eval out_filename ~gen_cfg ~gen_opt_cfg prog =
 
     if !gen_cfg then print_cfg cfg ".dot";
 
-    let vmap = DCE.init cfg |> DCE.solve (cfg, init) in
-    let dead_code = Dead.collect_dead_code cfg vmap in
-    Cfg.remove_vertices cfg dead_code;
+    (* let vmap = DCE.init cfg |> DCE.solve (cfg, init) in *)
+    (* let dead_code = Dead.collect_dead_code cfg vmap in *)
+    (* Cfg.remove_vertices cfg dead_code; *)
+    let vmap = COPY.init cfg |> COPY.solve (cfg, init) in
+    (* print_cfg cfg ".dot"; *)
+    COPY.print_vmap vmap;
+    let cfg_file = open_out_bin (basename ^ ".dot") in
+    COPY.render_cfg cfg_file vmap cfg;
 
     if !gen_opt_cfg then print_cfg cfg ".opt.dot";
 
