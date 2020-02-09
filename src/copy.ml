@@ -32,26 +32,31 @@ let defs vars name =
   VSet.filter (fun (_, var, _, _) -> var = name) vars
 
 (* Filter out defs that are not Assigns *)
-let filter_assigns = function
+let is_assign = function
   | (_, _, _, true) -> true
   | _ -> false
 
-(* TODO: May be able to move this in Analysis.Make module *)
+(* Find all assignments of the form name := _ or _ := name *)
+let assigns vars name =
+  VSet.filter (fun ((_, x, y, _) as i) -> is_assign i && (x = name || y = name)) vars
+
 let init_fold vars v sets =
   let def_set = def v in
   let defs_for_vars =
     let defed_vars = VSet.elements def_set in
-    List.fold_left (fun set (_, var, _, _) -> VSet.union (defs vars var) set) VSet.empty defed_vars in
+    List.fold_left (fun set (_, var, _, _) -> VSet.union (assigns vars var) set) VSet.empty defed_vars in
   let vset = {
-    gen_set = VSet.filter filter_assigns def_set;
+    gen_set = VSet.filter is_assign def_set;
     kill_set = VSet.diff defs_for_vars def_set;
     in_set = VSet.empty;
-    out_set = VSet.empty
+    out_set = VSet.empty;
   } in
   VMap.add v vset sets
 
 let solve_traverse (g, entry) sets =
   let visited = Hashtbl.create (G.nb_vertex g) in
+  (* Vars in scope *)
+  (* let defined_vars = Hashtbl.create (Cfg.nb_vertex g) in *)
   let rec traverse sets node =
     (* if node has not been visited *)
     if not (Hashtbl.mem visited node) then begin
@@ -71,21 +76,7 @@ let solve_traverse (g, entry) sets =
       (* In = /\{p in preds[v]: out[p]} *)
       let in_set = List.fold_left VSet.inter u_set pred_outs in
       (* Out = gen[v] U (in[v] - kill[v]) *)
-      (* Also need to kill defs that the input map to each other *)
-      let kill_defs = Hashtbl.create 10 in
-      VSet.iter begin fun e ->
-        let _, _, y, _ = e in
-        Hashtbl.add kill_defs y e
-      end in_set;
-      let in_kill_set = VSet.fold begin fun v acc ->
-        let _, y, _, _ = v in
-        let e = Hashtbl.find_opt kill_defs y in
-        match e with
-          | Some(x) -> VSet.add x acc
-          | None -> acc
-      end kill_set VSet.empty in
-      let kill_set' = VSet.union kill_set in_kill_set in
-      let out_set = VSet.union gen_set (VSet.diff in_set kill_set') in
+      let out_set = VSet.union gen_set (VSet.diff in_set kill_set) in
       (* Update the data flow solutions *)
       let sets' = VMap.add node { gen_set; kill_set; in_set; out_set; } sets in
       let outgoing = G.succ g node in
