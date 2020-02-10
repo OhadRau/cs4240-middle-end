@@ -99,16 +99,18 @@ let () =
   let in_filename = ref ""
   and out_filename = ref ""
   and gen_cfg = ref false
-  and gen_opt_cfg = ref false in
+  and gen_opt_cfg = ref false
+  and fuzz = ref false in
   let arg_spec = Arg.[
     "-i", Set_string in_filename, "Input IR file";
     "-o", Set_string out_filename, "Output IR file";
+    "--fuzz", Set fuzz, "Generate random IR programs to fuzz the optimizers";
     "--gen-cfg", Set gen_cfg, "Generate a CFG for the (unoptimized) program";
     "--gen-opt-cfg", Set gen_opt_cfg, "Generate a CFG for the (optimized) program"
   ] in
   let program_name = Sys.argv.(0) in
   Arg.parse arg_spec ignore (Printf.sprintf "Usage: %s -i <input_file> -o <output_file>\n" program_name);
-  if !in_filename = "" then begin
+  if (not !fuzz) && !in_filename = "" then begin
     Printf.eprintf "Error: No input file passed given!\n";
     exit 1
   end;
@@ -117,4 +119,9 @@ let () =
     exit 1
   end;
 
-  read_file (eval !out_filename ~gen_cfg ~gen_opt_cfg) !in_filename
+  if !fuzz then begin
+    let formatted = Fuzz.fuzz_prog () |> Format.string_of_program
+    and out_file = open_out !out_filename in
+    output_string out_file formatted
+  end else
+    read_file (eval !out_filename ~gen_cfg ~gen_opt_cfg) !in_filename
