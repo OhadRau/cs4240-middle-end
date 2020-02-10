@@ -104,7 +104,7 @@ let string_of_func = function
     header ^ "\n" ^
     dataSegment ^ "\n" ^
     codeSegment ^ "\n" ^
-    "#end_function"
+    "#end_function\n"
 
 let string_of_program program =
-  List.map string_of_func program |> String.concat "\n\n"
+  List.map string_of_func program |> String.concat "\n"
