@@ -62,7 +62,7 @@ program:
 ;
 
 func:
-  | START_FUNCTION; EOL+; hd = header; data = dataSegment; body = codeSegment; END_FUNCTION; EOL+
+  | START_FUNCTION; EOL+; hd = header; data = dataSegment; body = codeSegment; END_FUNCTION; EOL*
     {
       let (name, returnType, params) = hd in
       { name; returnType; params; data; body }
@@ -111,6 +111,7 @@ dataName:
     { Scalar id }
   | id = ident_or_keyword; LEFT_BRACKET; size = int; RIGHT_BRACKET
     { Array (id, size) }
+;
 
 codeSegment:
   |
