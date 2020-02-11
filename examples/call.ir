@@ -1,0 +1,11 @@
+#start_function
+int double(int n):
+int-list: x, y, z
+float-list:
+    assign, x, 1
+    assign, y, 2
+    assign, z, y
+    call, putf, z
+    call, putf, z, z, y
+end:
+#end_function
