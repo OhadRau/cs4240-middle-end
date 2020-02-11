@@ -24,12 +24,13 @@ module Vertex = struct
 end
 
 module Edge = struct
-  type t = [`Fallthrough | `Branch | `Jump]
+  type t = [`Fallthrough | `Unreachable | `Branch | `Jump]
   let compare = compare
   let default = `Fallthrough
 
   let to_string = function
     | `Fallthrough -> "fallthrough"
+    | `Unreachable -> "unreachable"
     | `Branch -> "branch"
     | `Jump -> "jump"
 end
@@ -80,15 +81,14 @@ let build instrs =
 
     (* Adds the default fallthrough edge, i.e. an edge that
        continues to the next instruction *)
-    let add_fallthrough () =
+    let add_fallthrough lbl =
       (* If there's an edge that comes next in the vertex list
          then add it *)
       match List.nth_opt vertices (idx + 1) with
       | Some next ->
-        let edge = G.E.create vertex `Fallthrough next in
+        let edge = G.E.create vertex lbl next in
         G.add_edge_e g edge
       | None -> () in
-
     let rec last_instr = function
       | [] -> failwith "Tried to get last item in empty list"
       | [last] -> last
@@ -96,12 +96,15 @@ let build instrs =
     (* We base the edges on the last instruction in a block since it's
        the one that edges are "coming" from *)
     match last_instr instrs with
-    (* For gotos, the we always jump so the "fallthrough" edge
-       becomes the target of the jump *)
+    (* For gotos, we always jump so the "fallthrough" edge
+       becomes the target of the jump. However, if the goto
+       causes the next line to be unreachable, it create an
+       "unreachable" edge to it *)
     | Ir.Goto lbl ->
       let target = Hashtbl.find vertices_by_label lbl in
       let edge = G.E.create vertex `Jump target in
-      G.add_edge_e g edge
+      G.add_edge_e g edge;
+      add_fallthrough `Unreachable
     (* For branches, there are always two edges: the next instruction
        (fallthrough) and the target of the branch (whenever the condition
       is true) *)
@@ -114,14 +117,14 @@ let build instrs =
       let target = Hashtbl.find vertices_by_label lbl in
       let edge = G.E.create vertex `Branch target in
       G.add_edge_e g edge;
-      add_fallthrough ()
+      add_fallthrough `Fallthrough
     (* Return has no outgoing edges, since it marks the end of the
        procedure *)
     | Ir.Return _ -> ()
     (* For all other instructions, we only fallthrough into the next
        instruction *)
     | _ ->
-      add_fallthrough () in
+      add_fallthrough `Fallthrough in
   List.iteri populate_edges vertices;
 
   g, List.hd vertices
@@ -165,7 +168,7 @@ let get_code g hd =
     (* Handle each different type of edge/dst combo *)
     let dst = G.E.dst e in
     match G.E.label e with
-      | `Fallthrough -> [dst]
+      | `Fallthrough | `Unreachable -> [dst]
       | _ when G.in_degree g dst = 1 -> [dst]
       | _ when pred_ft dst -> []
       | _ -> [dst] in
@@ -224,24 +227,30 @@ let update_vertices g replacements =
   let mappings = Hashtbl.create (G.nb_vertex g) in
   G.iter_vertex (fun v -> Hashtbl.add mappings v v) g;
   (* Update the mappings with the user's requested replacements *)
-  List.iter (fun (k, v) -> Hashtbl.replace mappings k v) replacements;
+  List.iter begin fun (k, v) ->
+    Hashtbl.replace mappings v v;
+    Hashtbl.replace mappings k v
+  end replacements;
   (* For each vertex that needs to be deleted *)
   List.iter begin fun (v, v') ->
-    G.add_vertex g v';
-    (* Find its predecessors/successors *)
-    let preds = G.pred_e g v
-    and succs = G.succ_e g v in
-    (* Update every edge for this vertex to go to the new vertex *)
-    List.iter begin fun (src, label, _) ->
-      let src' = Hashtbl.find mappings src in
-      G.add_edge_e g (src', label, v')
-    end preds;
-    List.iter begin fun (_, label, dst) ->
-      let dst' = Hashtbl.find mappings dst in
-      G.add_edge_e g (v', label, dst')
-    end succs;
-    (* And finally delete the vertex *)
-    G.remove_vertex g v
+    (* Only replace if the new vertex is actually different *)
+    if v <> v' then begin
+      G.add_vertex g v';
+      (* Find its predecessors/successors *)
+      let preds = G.pred_e g v
+      and succs = G.succ_e g v in
+      (* Update every edge for this vertex to go to the new vertex *)
+      List.iter begin fun (src, label, _) ->
+        let src' = Hashtbl.find mappings src in
+        G.add_edge_e g (src', label, v')
+      end preds;
+      List.iter begin fun (_, label, dst) ->
+        let dst' = Hashtbl.find mappings dst in
+        G.add_edge_e g (v', label, dst')
+      end succs;
+      (* And finally delete the vertex *)
+      G.remove_vertex g v
+    end
   end replacements
 
 let hashtbl_of_cfg g =

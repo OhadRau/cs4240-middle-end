@@ -93,10 +93,12 @@ let eval out_filename ~gen_cfg ~gen_opt_cfg prog =
     (* let dead_code = Dead.collect_dead_code cfg vmap in *)
     (* Cfg.remove_vertices cfg dead_code; *)
     let vmap = COPY.init cfg |> COPY.solve (cfg, init) in
-    (* print_cfg cfg ".dot"; *)
-    COPY.print_vmap vmap;
+    print_cfg cfg ".dot";
+    (* COPY.print_vmap vmap; *)
     let cfg_file = open_out_bin (basename ^ ".dot") in
-    COPY.render_cfg cfg_file vmap cfg;
+    (* COPY.render_cfg cfg_file vmap cfg; *)
+    Copy.copy_prop cfg vmap;
+    Cfg.Render.output_graph cfg_file cfg;
 
     if !gen_opt_cfg then print_cfg cfg ".opt.dot";
 
