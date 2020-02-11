@@ -37,7 +37,7 @@ let is_assign = function
   | _ -> false
 
 (* Get a list of the operands in the vertex assuming single instruction *)
-let ops v =
+let operands v =
   let _, instrs = G.V.label v in
   let op = function
     | Assign(_, x)
@@ -127,60 +127,61 @@ let string_of_t elts =
 let copy_prop cfg vmap =
   let checked_v = Hashtbl.create (G.nb_vertex cfg) in
   let replacements = ref [] in
+  let op_list_of_string_list l =
+    List.map (fun op -> Ident op) l in
   (* Get the rhs for an assignment with form x := y *)
-  let get_rhs in_set var =
-    let curr_var = ref var in
-    let in_tbl = hashtbl_of_vset in_set in
-    while Hashtbl.mem in_tbl !curr_var do
-      curr_var := Hashtbl.find in_tbl var
-    done;
-    !curr_var in
+  let rec get_rhs in_set var =
+    match var with
+      | Ident(var') ->
+          let in_tbl = hashtbl_of_vset in_set in
+          if Hashtbl.mem in_tbl var' then get_rhs in_set (Ident (Hashtbl.find in_tbl var'))
+          else var
+      | _ -> var in
+  (* Check if the instruction is gonna be changed *)
+  let change_instr in_set v =
+    let ops = op_list_of_string_list (use v) in
+    List.exists (fun op -> if op <> get_rhs in_set op then true else false) ops in
   (* Generate an instruction from the old instruction and ops list *)
-  let gen_instr instr ops =
-    match instr with
-      | Assign(x, _) -> Assign(x, (List.nth ops 0))
-      | Add(x, _, _) -> Add(x, (List.nth ops 0), (List.nth ops 1))
-      | Sub(x, _, _) -> Sub(x, (List.nth ops 0), (List.nth ops 1))
-      | Mult(x, _, _) -> Mult(x, (List.nth ops 0), (List.nth ops 1))
-      | Div(x, _, _) -> Div(x, (List.nth ops 0), (List.nth ops 1))
-      | And(x, _, _) -> And(x, (List.nth ops 0), (List.nth ops 1))
-      | Or(x, _, _) -> Or(x, (List.nth ops 0), (List.nth ops 1))
-      | Breq(x, _, _) -> Breq(x, (List.nth ops 0), (List.nth ops 1))
-      | Brneq(x, _, _) -> Brneq(x, (List.nth ops 0), (List.nth ops 1))
-      | Brlt(x, _, _) -> Brlt(x, (List.nth ops 0), (List.nth ops 1))
-      | Brgt(x, _, _) -> Brgt(x, (List.nth ops 0), (List.nth ops 1))
-      | Brgeq(x, _, _) -> Brgeq(x, (List.nth ops 0), (List.nth ops 1))
-      | Brleq(x, _, _) -> Brleq(x, (List.nth ops 0), (List.nth ops 1))
-      | Return(x) -> Return(x)
-      | Call(x, _) -> Call(x, ops) (* TODO: Check this *)
-      | Callr(x, y, _) -> Callr(x, y, ops)
-      | ArrayStore(_, x, _) -> ArrayStore((List.nth ops 0), x, (List.nth ops 1))
-      | ArrayLoad(x, y, _) -> ArrayLoad(x, y, (List.nth ops 0))
-      | ArrayAssign(x, y, _) -> ArrayAssign(x, y, (List.nth ops 0))
-      | _ -> instr in
+  let gen_instr in_set v =
+    let _, instrs = v in
+    let make_instr = function
+      | Assign(x, op) -> Assign(x, get_rhs in_set op)
+      | Add(x, op1, op2) -> Add(x, get_rhs in_set op1, get_rhs in_set op2)
+      | Sub(x, op1, op2) -> Sub(x, get_rhs in_set op1, get_rhs in_set op2)
+      | Mult(x, op1, op2) -> Mult(x, get_rhs in_set op1, get_rhs in_set op2)
+      | Div(x, op1, op2) -> Div(x, get_rhs in_set op1, get_rhs in_set op2)
+      | And(x, op1, op2) -> And(x, get_rhs in_set op1, get_rhs in_set op2)
+      | Or(x, op1, op2) -> Or(x, get_rhs in_set op1, get_rhs in_set op2)
+      | Breq(x, op1, op2) -> Breq(x, get_rhs in_set op1, get_rhs in_set op2)
+      | Brneq(x, op1, op2) -> Brneq(x, get_rhs in_set op1, get_rhs in_set op2)
+      | Brlt(x, op1, op2) -> Brlt(x, get_rhs in_set op1, get_rhs in_set op2)
+      | Brgt(x, op1, op2) -> Brgt(x, get_rhs in_set op1, get_rhs in_set op2)
+      | Brgeq(x, op1, op2) -> Brgeq(x, get_rhs in_set op1, get_rhs in_set op2)
+      | Brleq(x, op1, op2) -> Brleq(x, get_rhs in_set op1, get_rhs in_set op2)
+      | Return(op) -> Return(get_rhs in_set op)
+      | Call(x, op_list) ->
+          let op_list' = List.map (fun op -> get_rhs in_set op) op_list in
+          Call(x, op_list')
+      | Callr(x, y, op_list) -> 
+          let op_list' = List.map (fun op -> get_rhs in_set op) op_list in
+          Callr(x, y, op_list')
+      | ArrayStore(op1, x, op2) -> ArrayStore(get_rhs in_set op1, x, get_rhs in_set op2)
+      | ArrayLoad(x, y, op) -> ArrayLoad(x, y, get_rhs in_set op)
+      | ArrayAssign(x, y, op) -> ArrayAssign(x, y, get_rhs in_set op)
+      | instr -> instr in
+    if not (change_instr in_set v) then instrs
+    else List.map make_instr instrs in
   (* Create a vertex with the given instruction *)
   G.iter_vertex begin fun v ->
-    let id, instr = v in
+    let id, instrs = v in
     if not (Hashtbl.mem checked_v id) then begin
       Hashtbl.add checked_v id ();
       let {in_set; _} = VMap.find v vmap in
-      let copies_found = ref false in
-      (* For every op in the list, replace it if it has a copy *)
-      let ops = List.map begin fun op ->
-        match op with
-          | Ident(name: string) -> begin
-              copies_found := true;  
-              Ident (get_rhs in_set name)
-            end
-          | _ -> op
-      end (ops v) in
-      (* If copies were propagated, then replace the vertex *)
-      if !copies_found then begin
-        (* Get the first element since blocks only have 1 instr *)
-        let instr' = gen_instr (List.nth instr 0) ops in
-        let v' = G.V.create (id, [instr']) in
+      let instrs' = gen_instr in_set v in
+      if instrs = instrs' then ()
+      else
+        let v' = G.V.create (id, instrs') in
         replacements := (v, v')::!replacements
-      end else ()
     end
   end cfg;
 
