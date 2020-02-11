@@ -36,32 +36,6 @@ let is_assign = function
   | (_, _, _, true) -> true
   | _ -> false
 
-(* Get a list of the operands in the vertex assuming single instruction *)
-let operands v =
-  let _, instrs = G.V.label v in
-  let op = function
-    | Assign(_, x)
-    | Return(x) -> [x]
-    | Add(_, x, y)
-    | Sub(_, x, y)
-    | Mult(_, x, y)
-    | Div(_, x, y)
-    | And(_, x, y)
-    | Or(_, x, y)
-    | Breq(_, x, y)
-    | Brneq(_, x, y)
-    | Brlt(_, x, y)
-    | Brgt(_, x, y)
-    | Brgeq(_, x, y)
-    | Brleq(_, x, y)
-    | ArrayStore(x, _, y) -> [x; y]
-    | Call(_, x)
-    | Callr(_, _, x) -> x
-    | ArrayLoad(_, _, x)
-    | ArrayAssign(_, _, x) -> [x]
-    | _ -> [] in
-  op (List.nth instrs 0)
-
 (* Find all assignments of the form name := _ or _ := name *)
 let assigns vars name =
   VSet.filter (fun ((_, x, y, _) as i) -> is_assign i && (x = name || y = name)) vars
