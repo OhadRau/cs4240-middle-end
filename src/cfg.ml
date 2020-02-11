@@ -218,6 +218,32 @@ let remove_vertices g vs =
       failwith msg
   end vs
 
+let update_vertices g replacements =
+  (* Create a mapping of each old vertex to its new
+     "replacement" vertex *)
+  let mappings = Hashtbl.create (G.nb_vertex g) in
+  G.iter_vertex (fun v -> Hashtbl.add mappings v v) g;
+  (* Update the mappings with the user's requested replacements *)
+  List.iter (fun (k, v) -> Hashtbl.replace mappings k v) replacements;
+  (* For each vertex that needs to be deleted *)
+  List.iter begin fun (v, v') ->
+    G.add_vertex g v';
+    (* Find its predecessors/successors *)
+    let preds = G.pred_e g v
+    and succs = G.succ_e g v in
+    (* Update every edge for this vertex to go to the new vertex *)
+    List.iter begin fun (src, label, _) ->
+      let src' = Hashtbl.find mappings src in
+      G.add_edge_e g (src', label, v')
+    end preds;
+    List.iter begin fun (_, label, dst) ->
+      let dst' = Hashtbl.find mappings dst in
+      G.add_edge_e g (v', label, dst')
+    end succs;
+    (* And finally delete the vertex *)
+    G.remove_vertex g v
+  end replacements
+
 let hashtbl_of_cfg g =
   let hashtbl = Hashtbl.create (G.nb_vertex g) in
   let add_mapping v =
