@@ -189,6 +189,8 @@ let get_code g hd =
   traverse hd
 
 let remove_vertices g vs =
+  (* Track whether anything changed *)
+  let changed = ref false in
   (* Create a mapping of each old vertex to its new 
      "replacement" vertex *)
   let mappings = Hashtbl.create (G.nb_vertex g) in
@@ -199,8 +201,10 @@ let remove_vertices g vs =
     let succs = G.succ g v in
     match succs with
     | [] ->
+      changed := true;
       G.remove_vertex g v
     | [succ] ->
+      changed := true;
       let real_succ = Hashtbl.find mappings succ in
       (* Update the mappings to say this vertex has been moved *)
       Hashtbl.replace mappings v real_succ;
@@ -219,9 +223,12 @@ let remove_vertices g vs =
       let msg =
         Printf.sprintf "Can't remove vertex %d with more than one successor" id in
       failwith msg
-  end vs
+  end vs;
+  !changed
 
 let update_vertices g replacements =
+  (* Track whether anything changed *)
+  let changed = ref false in
   (* Create a mapping of each old vertex to its new
      "replacement" vertex *)
   let mappings = Hashtbl.create (G.nb_vertex g) in
@@ -235,6 +242,7 @@ let update_vertices g replacements =
   List.iter begin fun (v, v') ->
     (* Only replace if the new vertex is actually different *)
     if v <> v' then begin
+      changed := true;
       G.add_vertex g v';
       (* Find its predecessors/successors *)
       let preds = G.pred_e g v
@@ -251,7 +259,8 @@ let update_vertices g replacements =
       (* And finally delete the vertex *)
       G.remove_vertex g v
     end
-  end replacements
+  end replacements;
+  !changed
 
 let hashtbl_of_cfg g =
   let hashtbl = Hashtbl.create (G.nb_vertex g) in

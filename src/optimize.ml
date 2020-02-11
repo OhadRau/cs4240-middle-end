@@ -44,7 +44,7 @@ let test_remove_vertices () =
   ] in
 
   display_graph "before.dot" g;
-  Cfg.remove_vertices g deletable;
+  let _ = Cfg.remove_vertices g deletable in
   display_graph "after.dot" g
 
 let eval_verbose basename prog =
@@ -77,6 +77,21 @@ let eval_verbose basename prog =
   
   List.iter print_function_cfg prog
 
+let rec iterate (cfg, init) =
+  (* Apply copy propagation *)
+  let copy_vmap = COPY.init cfg |> COPY.solve (cfg, init) in
+  let copy_changed = Copy.copy_prop cfg copy_vmap in
+
+  (* Apply dead code elimination *)
+  let dce_vmap = DCE.init cfg |> DCE.solve (cfg, init) in
+  let dead_code = Dead.collect_dead_code cfg dce_vmap in
+  let dead_changed = Cfg.remove_vertices cfg dead_code
+  and init = Cfg.first_instr cfg in
+
+  if dead_changed || copy_changed then
+    iterate (cfg, init)
+  else init
+
 let eval out_filename ~gen_cfg ~gen_opt_cfg prog =
   let open Ir in
   let out_file = open_out out_filename
@@ -89,20 +104,10 @@ let eval out_filename ~gen_cfg ~gen_opt_cfg prog =
 
     if !gen_cfg then print_cfg cfg ".dot";
 
-    (* let vmap = DCE.init cfg |> DCE.solve (cfg, init) in *)
-    (* let dead_code = Dead.collect_dead_code cfg vmap in *)
-    (* Cfg.remove_vertices cfg dead_code; *)
-    let vmap = COPY.init cfg |> COPY.solve (cfg, init) in
-    print_cfg cfg ".dot";
-    (* COPY.print_vmap vmap; *)
-    let cfg_file = open_out_bin (basename ^ ".dot") in
-    (* COPY.render_cfg cfg_file vmap cfg; *)
-    Copy.copy_prop cfg vmap;
-    Cfg.Render.output_graph cfg_file cfg;
-
+    let new_init = iterate (cfg, init) in
+    
     if !gen_opt_cfg then print_cfg cfg ".opt.dot";
 
-    let new_init = Cfg.first_instr cfg in
     let optimized_body = Cfg.get_code cfg new_init in
     { fn with body = optimized_body } in
   let optimized_prog = List.map optimize_fn prog in
