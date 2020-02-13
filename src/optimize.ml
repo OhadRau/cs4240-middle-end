@@ -79,26 +79,19 @@ let eval_verbose basename prog =
 
 let rec iterate (cfg, init) =
   (* Apply copy propagation *)
-  print_endline "-------Entering the copy propaGAYtion";
   let copy_vmap = COPY.init cfg |> Copy.init_in_sets (cfg, init) |> COPY.solve (cfg, init) in
-  print_endline "-------Leavgin the copy propaGAYtion (returning to the closet)";
   let dot_file = open_out_bin "iterate-copy.dot" in
-  print_endline "dot_file";
   COPY.render_cfg dot_file copy_vmap cfg;
-  print_endline "cooby";
+
   let copy_changed = Copy.copy_prop cfg copy_vmap
   and init = Cfg.first_instr cfg in
 
-  print_endline "copy_chng'd";
   (* Apply dead code elimination *)
-  print_endline "-------Imma dead ass-zombie";
   let dce_vmap = DCE.init cfg |> DCE.solve (cfg, init) in
   let dead_code = Dead.collect_dead_code cfg dce_vmap in
   let dead_changed = Cfg.remove_vertices cfg dead_code
   and init = Cfg.first_instr cfg in
-  print_endline "-------I live again (end of DCE)";
 
-  Printf.printf "ITERATING [dead: %b | copy: %b]\n" dead_changed copy_changed;
   if dead_changed || copy_changed then
     iterate (cfg, init)
   else init
@@ -115,7 +108,6 @@ let eval out_filename ~gen_cfg ~gen_opt_cfg prog =
 
     if !gen_cfg then print_cfg cfg ".dot";
 
-    print_endline "Start ITERATING";
     let new_init = iterate (cfg, init) in
     
     if !gen_opt_cfg then print_cfg cfg ".opt.dot";
