@@ -51,7 +51,10 @@ let solve_traverse (g, entry) sets =
       Hashtbl.add visited node ();
       let { gen_set; kill_set; _ } = VMap.find node sets
       and pred_outs =
-        let preds = G.pred g node in
+        let preds =
+          G.pred_e g node
+          |> List.filter (fun (_, lbl, _) -> lbl <> `Unreachable)
+          |> List.map (fun (src, _, _) -> src) in
         List.map begin fun pred ->
           let { out_set; _ } = VMap.find pred sets in
           out_set
@@ -61,7 +64,10 @@ let solve_traverse (g, entry) sets =
       (* Out = gen[v] U (in[v] - kill[v]) *)
       let out_set = VSet.union gen_set (VSet.diff in_set kill_set) in
       let sets' = VMap.add node { gen_set; kill_set; in_set; out_set } sets in
-      let outgoing = G.succ g node in
+      let outgoing =
+        G.succ_e g node
+        |> List.filter (fun (_, lbl, _) -> lbl <> `Unreachable)
+        |> List.map (fun (_, _, dst) -> dst) in
       List.fold_left traverse sets' outgoing
     end else sets in
   traverse sets entry

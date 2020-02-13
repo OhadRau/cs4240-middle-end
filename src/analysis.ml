@@ -42,8 +42,10 @@ module Make(D: Dataflow) = struct
     let sets' = f (g, entry) sets in
     if sets_converged sets' sets then
       sets
-    else
+    else begin
+      print_endline "CONT";
       fixpoint (g, entry) sets' f
+    end
   
   let init g =
     let sets = VMap.empty in
