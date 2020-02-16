@@ -77,6 +77,14 @@ let eval_verbose basename prog =
   
   List.iter print_function_cfg prog
 
+let dce (cfg, init) =
+  (* Apply dead code elimination *)
+  let dce_vmap = DCE.init cfg |> DCE.solve (cfg, init) in
+  let dead_code = Dead.collect_dead_code cfg dce_vmap in
+  let _ = Cfg.remove_vertices cfg dead_code
+  and init = Cfg.first_instr cfg in
+  init
+
 let rec iterate (cfg, init) =
   (* Apply copy propagation *)
   let copy_vmap = COPY.init cfg |> Copy.init_in_sets (cfg, init) |> COPY.solve (cfg, init) in
@@ -96,7 +104,7 @@ let rec iterate (cfg, init) =
     iterate (cfg, init)
   else init
 
-let eval out_filename ~gen_cfg ~gen_opt_cfg prog =
+let eval out_filename ~gen_cfg ~gen_opt_cfg ~copy_prop prog =
   let open Ir in
   let out_file = open_out out_filename
   and basename = Filename.remove_extension out_filename in
@@ -108,7 +116,8 @@ let eval out_filename ~gen_cfg ~gen_opt_cfg prog =
 
     if !gen_cfg then print_cfg cfg ".dot";
 
-    let new_init = iterate (cfg, init) in
+    let optimizer = if !copy_prop then iterate else dce in
+    let new_init = optimizer (cfg, init) in
     
     if !gen_opt_cfg then print_cfg cfg ".opt.dot";
 
@@ -121,12 +130,14 @@ let eval out_filename ~gen_cfg ~gen_opt_cfg prog =
 let () =
   let in_filename = ref ""
   and out_filename = ref ""
+  and copy_prop = ref false
   and gen_cfg = ref false
   and gen_opt_cfg = ref false
   and fuzz = ref false in
   let arg_spec = Arg.[
     "-i", Set_string in_filename, "Input IR file";
     "-o", Set_string out_filename, "Output IR file";
+    "--copy-prop", Set copy_prop, "Enable copy propagation optimization";
     "--fuzz", Set fuzz, "Generate random IR programs to fuzz the optimizers";
     "--gen-cfg", Set gen_cfg, "Generate a CFG for the (unoptimized) program";
     "--gen-opt-cfg", Set gen_opt_cfg, "Generate a CFG for the (optimized) program"
@@ -147,4 +158,4 @@ let () =
     and out_file = open_out !out_filename in
     output_string out_file formatted
   end else
-    read_file (eval !out_filename ~gen_cfg ~gen_opt_cfg) !in_filename
+    read_file (eval !out_filename ~copy_prop ~gen_cfg ~gen_opt_cfg) !in_filename
