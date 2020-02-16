@@ -139,7 +139,7 @@ let pick_arr_store fuzzEnv =
   | 0 ->
     let src = pick_float_op fuzzEnv
     and dst, _ = pick_var fuzzEnv.floatArrs
-    and idx = pick_float_op fuzzEnv in
+    and idx = pick_int_op fuzzEnv in
     (fuzzEnv, ArrayStore (src, dst, idx))
   | 1 ->
     let src = pick_int_op fuzzEnv
@@ -154,7 +154,7 @@ let pick_arr_load fuzzEnv =
   | 0 ->
     let dst = pick_var fuzzEnv.floats
     and src, _ = pick_var fuzzEnv.floatArrs
-    and idx = pick_float_op fuzzEnv in
+    and idx = pick_int_op fuzzEnv in
     (fuzzEnv, ArrayLoad (dst, src, idx))
   | 1 ->
     let dst = pick_var fuzzEnv.ints
