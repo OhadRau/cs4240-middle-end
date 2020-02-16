@@ -86,23 +86,25 @@ let dce (cfg, init) =
   init
 
 let rec iterate (cfg, init) =
-  (* Apply copy propagation *)
-  let copy_vmap = COPY.init cfg |> Copy.init_in_sets (cfg, init) |> COPY.solve (cfg, init) in
-  let dot_file = open_out_bin "iterate-copy.dot" in
-  COPY.render_cfg dot_file copy_vmap cfg;
+  try
+    (* Apply copy propagation *)
+    let copy_vmap = COPY.init cfg |> Copy.init_in_sets (cfg, init) |> COPY.solve (cfg, init) in
+    let dot_file = open_out_bin "iterate-copy.dot" in
+    COPY.render_cfg dot_file copy_vmap cfg;
 
-  let copy_changed = Copy.copy_prop cfg copy_vmap
-  and init = Cfg.first_instr cfg in
+    let copy_changed = Copy.copy_prop cfg copy_vmap
+    and init = Cfg.first_instr cfg in
 
-  (* Apply dead code elimination *)
-  let dce_vmap = DCE.init cfg |> DCE.solve (cfg, init) in
-  let dead_code = Dead.collect_dead_code cfg dce_vmap in
-  let dead_changed = Cfg.remove_vertices cfg dead_code
-  and init = Cfg.first_instr cfg in
+    (* Apply dead code elimination *)
+    let dce_vmap = DCE.init cfg |> DCE.solve (cfg, init) in
+    let dead_code = Dead.collect_dead_code cfg dce_vmap in
+    let dead_changed = Cfg.remove_vertices cfg dead_code
+    and init = Cfg.first_instr cfg in
 
-  if dead_changed || copy_changed then
-    iterate (cfg, init)
-  else init
+    if dead_changed || copy_changed then
+      iterate (cfg, init)
+    else init
+  with _ -> Cfg.first_instr cfg
 
 let eval out_filename ~gen_cfg ~gen_opt_cfg ~copy_prop prog =
   let open Ir in
