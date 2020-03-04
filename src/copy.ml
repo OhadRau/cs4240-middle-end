@@ -1,5 +1,5 @@
-open Ir
-open Cfg
+open TigerIR.Ir
+open TigerIR.Cfg
 open Analysis
 
 type t = int * string * string * bool

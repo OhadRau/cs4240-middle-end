@@ -1,4 +1,5 @@
 open Lexing
+open TigerIR
 
 module DCE = Analysis.Make(Dead)
 module COPY = Analysis.Make(Copy)

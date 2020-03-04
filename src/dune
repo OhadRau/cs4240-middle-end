@@ -3,6 +3,13 @@
   (flags (--explain))
   (modules parser))
 
+(library
+  (public_name tigerIR)
+  (name tigerIR)
+  (modules cfg format ir lexer parser)
+  (libraries ocamlgraph))
+
 (executable
   (name optimize)
-  (libraries menhirLib ocamlgraph))
+  (modules analysis fuzz optimize copy dead)
+  (libraries menhirLib ocamlgraph tigerIR))

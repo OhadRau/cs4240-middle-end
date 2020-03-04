@@ -1,5 +1,5 @@
-open Ir
-open Cfg
+open TigerIR.Ir
+open TigerIR.Cfg
 
 type 'a dataflow_sets = {
   gen_set: 'a;

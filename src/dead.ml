@@ -1,5 +1,5 @@
-open Ir
-open Cfg
+open TigerIR.Ir
+open TigerIR.Cfg
 open Analysis
 
 type t = int * string
@@ -98,7 +98,7 @@ let is_critical = function
 
 let collect_dead_code cfg vmap = 
   (* Collect dead code. It is the caller's responsibility to remove it. *)
-  let cfg_tbl = Cfg.hashtbl_of_cfg cfg in
+  let cfg_tbl = TigerIR.Cfg.hashtbl_of_cfg cfg in
   let marked_v = Hashtbl.create (G.nb_vertex cfg) in
   let mark_and_worklist v mlist wlist =
     if not (Hashtbl.mem mlist v) then begin

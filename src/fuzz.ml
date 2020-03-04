@@ -1,4 +1,4 @@
-open Ir
+open TigerIR.Ir
 
 type fuzzEnv = {
   ints: string list;
